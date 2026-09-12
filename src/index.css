@@ -170,6 +170,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--purple); box-sha
 .text-button { padding: 0; border: 0; color: var(--violet); background: transparent; cursor: pointer; }
 .form-message { margin: 0; font-size: 13px; }
 .form-message.success { color: var(--success); }
+.modal-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.72); }
+.modal { position: relative; width: min(100%, 480px); padding: 28px; background: var(--surface-2); border: 1px solid #403651; border-radius: 7px; box-shadow: 0 30px 100px rgba(0,0,0,.7); }
+.modal-close { position: absolute; top: 10px; right: 10px; }
+.copy-field { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 22px; padding: 14px; background: #07070d; border: 1px solid var(--line); border-radius: 6px; }
 
 .dashboard-layout { display: grid; grid-template-columns: 250px minmax(0,1fr); gap: 28px; }
 .dashboard-sidebar { position: sticky; top: 94px; height: fit-content; padding: 22px 10px 12px; border: 1px solid var(--line); background: var(--surface); border-radius: 7px; }

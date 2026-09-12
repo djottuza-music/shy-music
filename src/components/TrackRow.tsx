@@ -5,10 +5,12 @@ import type { Track } from '../types'
 import { formatCount, formatDuration } from '../lib/format'
 import { getDownloadUrl } from '../lib/catalog'
 import { usePlayer } from '../contexts/PlayerContext'
+import { useTrackLike } from '../hooks/social'
 import { Cover } from './States'
 
 export function TrackRow({ track, queue, index, compact = false }: { track: Track; queue: Track[]; index?: number; compact?: boolean }) {
   const player = usePlayer()
+  const like = useTrackLike(track.id)
   const active = player.current?.id === track.id
   const [downloading, setDownloading] = useState(false)
   const [message, setMessage] = useState('')
@@ -69,7 +71,7 @@ export function TrackRow({ track, queue, index, compact = false }: { track: Trac
     </div>
     <span className="track-duration">{formatDuration(track.duration_seconds)}</span>
     <div className="row-actions">
-      <button className="icon-button" aria-label={`Like ${track.title}`}><Heart /></button>
+      <button className={`icon-button ${like.liked ? 'selected' : ''}`} onClick={like.toggle} disabled={like.busy} aria-pressed={like.liked} aria-label={`${like.liked ? 'Unlike' : 'Like'} ${track.title}`}><Heart fill={like.liked ? 'currentColor' : 'none'} /></button>
       <button className="icon-button" onClick={share} aria-label={`Share ${track.title}`}><Share2 /></button>
       {track.downloadable && <button className="icon-button" onClick={download} disabled={downloading} aria-label={`Download ${track.title}`}><Download /></button>}
       <button className="icon-button" aria-label={`More options for ${track.title}`}><MoreHorizontal /></button>
