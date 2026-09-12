@@ -1,0 +1,48 @@
+{
+  "name": "shy-music",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "typecheck": "tsc -b",
+    "build": "npm run typecheck && vite build && node scripts/prepare-pages.mjs",
+    "lint": "oxlint src scripts",
+    "test": "vitest run",
+    "preview": "vite preview --host 0.0.0.0",
+    "catalog:import": "node scripts/import-catalog.mjs",
+    "android:sync": "cap sync android",
+    "android:open": "cap open android",
+    "android:build": "cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@hookform/resolvers": "^5.9.1",
+    "@supabase/supabase-js": "^2.116.0",
+    "@tanstack/react-query": "^5.102.8",
+    "lucide-react": "^1.45.0",
+    "music-metadata": "^11.15.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-hook-form": "^7.88.0",
+    "react-router-dom": "^7.18.3",
+    "zod": "^4.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "jsdom": "^30.0.1",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.0"
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SHY Music</string>
+    <string name="title_activity_main">SHY Music</string>
+    <string name="package_name">music.shy.app</string>
+    <string name="custom_url_scheme">music.shy.app</string>
+</resources>
