@@ -3,6 +3,7 @@ import { Play, Share2 } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import { Cover, ErrorState, LoadingState } from '../components/States'
 import { TrackRow } from '../components/TrackRow'
+import { ReportButton } from '../components/ReportButton'
 import { usePlayer } from '../contexts/PlayerContext'
 import { getAlbum } from '../lib/catalog'
 import { formatCount } from '../lib/format'
@@ -19,5 +20,5 @@ export function AlbumPage() {
     if (navigator.share) await navigator.share({ title: `${album.title} on SHY`, url })
     else await navigator.clipboard.writeText(url)
   }
-  return <div><section className="album-hero"><Cover src={album.cover_url} alt={album.title} className="album-cover-large" /><div><span className="eyebrow">{album.release_type}</span><h1>{album.title}</h1><p>{album.artist?.display_name}</p><p>{tracks.length} tracks · {formatCount(tracks.reduce((sum, track) => sum + track.plays_count, 0))} streams</p><div className="hero-actions">{tracks[0] && <button className="button primary" onClick={() => player.play(tracks[0], tracks)}><Play fill="currentColor" />Play album</button>}<button className="button secondary" onClick={share}><Share2 />Share</button></div></div></section><div className="track-list">{tracks.map((track, index) => <TrackRow key={track.id} track={track} queue={tracks} index={index} />)}</div></div>
+  return <div><section className="album-hero"><Cover src={album.cover_url} alt={album.title} className="album-cover-large" /><div><span className="eyebrow">{album.release_type}</span><h1>{album.title}</h1><p>{album.artist?.display_name}</p><p>{tracks.length} tracks · {formatCount(tracks.reduce((sum, track) => sum + track.plays_count, 0))} streams</p><div className="hero-actions">{tracks[0] && <button className="button primary" onClick={() => player.play(tracks[0], tracks)}><Play fill="currentColor" />Play album</button>}<button className="button secondary" onClick={share}><Share2 />Share</button><ReportButton targetType="album" targetId={album.id} targetName={album.title} /></div></div></section><div className="track-list">{tracks.map((track, index) => <TrackRow key={track.id} track={track} queue={tracks} index={index} />)}</div></div>
 }

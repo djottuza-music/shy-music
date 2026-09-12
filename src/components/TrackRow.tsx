@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Track } from '../types'
 import { formatCount, formatDuration } from '../lib/format'
-import { getDownloadUrl } from '../lib/catalog'
+import { startTrackDownload } from '../lib/download'
 import { usePlayer } from '../contexts/PlayerContext'
 import { useTrackLike } from '../hooks/social'
 import { Cover } from './States'
@@ -14,6 +14,7 @@ export function TrackRow({ track, queue, index, compact = false }: { track: Trac
   const active = player.current?.id === track.id
   const [downloading, setDownloading] = useState(false)
   const [message, setMessage] = useState('')
+  const [moreOpen, setMoreOpen] = useState(false)
 
   const toggle = async () => {
     try {
@@ -42,14 +43,7 @@ export function TrackRow({ track, queue, index, compact = false }: { track: Trac
     setDownloading(true)
     setMessage('')
     try {
-      const url = await getDownloadUrl(track.id)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = `${track.artist?.display_name ?? 'SHY'} - ${track.title}.mp3`
-      anchor.rel = 'noopener'
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
+      await startTrackDownload(track)
       setMessage('Download started.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Download failed.')
@@ -74,7 +68,7 @@ export function TrackRow({ track, queue, index, compact = false }: { track: Trac
       <button className={`icon-button ${like.liked ? 'selected' : ''}`} onClick={like.toggle} disabled={like.busy} aria-pressed={like.liked} aria-label={`${like.liked ? 'Unlike' : 'Like'} ${track.title}`}><Heart fill={like.liked ? 'currentColor' : 'none'} /></button>
       <button className="icon-button" onClick={share} aria-label={`Share ${track.title}`}><Share2 /></button>
       {track.downloadable && <button className="icon-button" onClick={download} disabled={downloading} aria-label={`Download ${track.title}`}><Download /></button>}
-      <button className="icon-button" aria-label={`More options for ${track.title}`}><MoreHorizontal /></button>
+      <div className="more-menu"><button className="icon-button" onClick={() => setMoreOpen((value) => !value)} aria-label={`More options for ${track.title}`} aria-expanded={moreOpen}><MoreHorizontal /></button>{moreOpen && <div className="context-menu"><button onClick={() => { player.addToQueue(track); setMessage('Added to queue.'); setMoreOpen(false) }}>Add to queue</button>{track.artist && <Link to={`/artists/${track.artist.slug}`} onClick={() => setMoreOpen(false)}>Go to artist</Link>}<button onClick={() => { void share(); setMoreOpen(false) }}>Share</button></div>}</div>
     </div>
   </article>
 }

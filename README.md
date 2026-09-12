@@ -36,12 +36,9 @@ In Supabase Auth URL Configuration, use the final GitHub Pages URL as the Site U
 
 ## Android
 
-Set `CAPACITOR_SERVER_URL` to the final GitHub Pages URL, then run:
-
 ```powershell
-npx cap add android
 npm run android:sync
 npm run android:build
 ```
 
-Web-only releases reach the installed app from the shared production URL after the app is reopened. Native plugin or Android configuration changes require a new APK/AAB.
+The Android package embeds the tested web build. Website deployments do not silently replace code in an installed Android app. Any web, native plugin, or Android configuration change requires a new APK/AAB release; both applications continue to use the same Supabase catalogue and accounts.

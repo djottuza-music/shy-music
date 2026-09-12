@@ -88,7 +88,7 @@ export async function getTrack(slug: string): Promise<Track> {
 
 export async function listArtistCatalog(artistId: string, includePrivate = false): Promise<{ albums: Album[]; tracks: Track[] }> {
   const db = requireSupabase()
-  let albumQuery = db.from('albums').select('*').eq('artist_id', artistId).order('created_at', { ascending: false })
+  let albumQuery = db.from('albums').select('*, tracks(count)').eq('artist_id', artistId).order('created_at', { ascending: false })
   let trackQuery = db.from('tracks').select('*, artist:artists(display_name,slug,avatar_url,verified), album:albums(title,slug,cover_path)').eq('artist_id', artistId).order('created_at', { ascending: false })
   if (!includePrivate) {
     albumQuery = albumQuery.eq('release_status', 'published').lte('release_at', new Date().toISOString())
@@ -98,7 +98,7 @@ export async function listArtistCatalog(artistId: string, includePrivate = false
   if (albumsResult.error) throw albumsResult.error
   if (tracksResult.error) throw tracksResult.error
   return {
-    albums: (albumsResult.data ?? []).map((row: any) => ({ ...row, cover_url: publicStorageUrl('covers', row.cover_path) })) as Album[],
+    albums: (albumsResult.data ?? []).map((row: any) => ({ ...row, cover_url: publicStorageUrl('covers', row.cover_path), track_count: row.tracks?.[0]?.count ?? 0 })) as Album[],
     tracks: hydrateTracks((tracksResult.data ?? []) as Track[]),
   }
 }
@@ -108,7 +108,7 @@ export async function getTrackStreamUrl(trackId: string): Promise<string> {
   const { data, error } = await db.rpc('get_track_media_path', { p_track_id: trackId, p_download: false })
   if (error) throw error
   if (!data) throw new Error('This track is not available for playback.')
-  const signed = await db.storage.from('audio').createSignedUrl(String(data), 60 * 60)
+  const signed = await db.storage.from('audio').createSignedUrl(String(data), 6 * 60 * 60)
   if (signed.error) throw signed.error
   return signed.data.signedUrl
 }
@@ -119,12 +119,12 @@ export async function recordQualifiedPlay(trackId: string, sessionId: string): P
   return Number(data ?? 0)
 }
 
-export async function getDownloadUrl(trackId: string): Promise<string> {
+export async function getDownloadUrl(trackId: string, fileName?: string): Promise<string> {
   const db = requireSupabase()
   const { data, error } = await db.rpc('get_track_media_path', { p_track_id: trackId, p_download: true })
   if (error) throw error
   if (!data) throw new Error('This download is unavailable.')
-  const signed = await db.storage.from('audio').createSignedUrl(String(data), 10 * 60, { download: true })
+  const signed = await db.storage.from('audio').createSignedUrl(String(data), 10 * 60, { download: fileName || true })
   if (signed.error) throw signed.error
   return signed.data.signedUrl
 }

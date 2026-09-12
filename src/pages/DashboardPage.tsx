@@ -67,11 +67,51 @@ function Overview({ artist, tracks, albums }: { artist: Artist; tracks: Track[];
 function Stat({ label, value }: { label: string; value: string }) { return <div className="stat-card"><span>{label}</span><strong>{value}</strong></div> }
 
 function Songs({ tracks }: { tracks: Track[] }) {
-  return <section className="dashboard-panel">{tracks.length ? <div className="management-list">{tracks.map((track) => <ManagementRow key={track.id} cover={track.cover_url} title={track.title} meta={`${track.release_status} · ${formatCount(track.plays_count)} streams`} action={<Link className="button secondary" to={`/tracks/${track.slug}`}>View</Link>} />)}</div> : <EmptyState title="No songs yet" text="Upload your first single or album." />}</section>
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('all')
+  const visible = tracks.filter((track) => (!query.trim() || track.title.toLowerCase().includes(query.trim().toLowerCase())) && (status === 'all' || track.release_status === status))
+  return <section className="dashboard-panel"><div className="management-filters"><label>Search songs<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} /></label><label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">All</option><option value="draft">Draft</option><option value="scheduled">Scheduled</option><option value="published">Published</option><option value="archived">Archived</option></select></label></div>{visible.length ? <div className="editor-list">{visible.map((track) => <TrackEditor key={track.id} track={track} />)}</div> : <EmptyState title={tracks.length ? 'No matching songs' : 'No songs yet'} text={tracks.length ? 'Try another title or status.' : 'Upload your first single.'} />}</section>
 }
 
 function Albums({ albums }: { albums: Album[] }) {
-  return <section className="dashboard-panel">{albums.length ? <div className="management-list">{albums.map((album) => <ManagementRow key={album.id} cover={album.cover_url} title={album.title} meta={`${album.release_type} · ${album.release_status}`} action={<Link className="button secondary" to={`/albums/${album.slug}`}>View</Link>} />)}</div> : <EmptyState title="No albums yet" />}</section>
+  return <section className="dashboard-panel">{albums.length ? <div className="editor-list">{albums.map((album) => <AlbumEditor key={album.id} album={album} />)}</div> : <EmptyState title="No albums yet" text="Albums imported or created for this artist will appear here." />}</section>
+}
+
+function TrackEditor({ track }: { track: Track }) {
+  const client = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({ title: track.title, release_status: track.release_status, release_at: toLocalDateTime(track.release_at), downloadable: track.downloadable })
+  const save = useMutation({ mutationFn: async () => {
+    const title = form.title.trim()
+    if (!title) throw new Error('Title is required.')
+    const releaseAt = form.release_at ? new Date(form.release_at) : null
+    if (form.release_status === 'scheduled' && (!releaseAt || releaseAt <= new Date())) throw new Error('A scheduled song needs a future date and time.')
+    if (form.release_status === 'published' && !releaseAt) throw new Error('A published song needs a release date.')
+    const { error } = await requireSupabase().from('tracks').update({ title, release_status: form.release_status, release_at: releaseAt?.toISOString() ?? null, downloadable: form.downloadable }).eq('id', track.id)
+    if (error) throw error
+  }, onSuccess: async () => { await client.invalidateQueries({ queryKey: ['my-catalog'] }); setEditing(false) } })
+  if (!editing) return <ManagementRow cover={track.cover_url} title={track.title} meta={`${track.release_status} · ${formatCount(track.plays_count)} streams · ${track.downloadable ? 'download enabled' : 'stream only'}`} action={<div className="row-buttons"><Link className="button secondary" to={`/tracks/${track.slug}`}>View</Link><button className="button secondary" onClick={() => setEditing(true)}>Edit</button></div>} />
+  return <form className="editor-row" onSubmit={(event) => { event.preventDefault(); save.mutate() }}><Cover src={track.cover_url} alt={track.title} /><div className="editor-fields"><label>Title<input value={form.title} onChange={(event) => setForm((value) => ({ ...value, title: event.target.value }))} /></label><label>Status<select value={form.release_status} onChange={(event) => setForm((value) => ({ ...value, release_status: event.target.value as Track['release_status'] }))}><option value="draft">Draft</option><option value="scheduled">Scheduled</option><option value="published">Published</option><option value="archived">Archived</option></select></label><label>Release date and time<input type="datetime-local" value={form.release_at} onChange={(event) => setForm((value) => ({ ...value, release_at: event.target.value }))} /></label><label className="check-label"><input type="checkbox" checked={form.downloadable} onChange={(event) => setForm((value) => ({ ...value, downloadable: event.target.checked }))} />Allow free download</label>{save.error && <p className="form-message error">{save.error.message}</p>}<div className="row-buttons"><button type="button" className="button secondary" onClick={() => setEditing(false)}>Cancel</button><button className="button primary" disabled={save.isPending}><Save />{save.isPending ? 'Saving...' : 'Save song'}</button></div></div></form>
+}
+
+function AlbumEditor({ album }: { album: Album }) {
+  const client = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({ title: album.title, release_status: album.release_status, release_at: toLocalDateTime(album.release_at) })
+  const save = useMutation({ mutationFn: async () => {
+    const title = form.title.trim()
+    if (!title) throw new Error('Title is required.')
+    const releaseAt = form.release_at ? new Date(form.release_at) : null
+    if (form.release_status === 'scheduled' && (!releaseAt || releaseAt <= new Date())) throw new Error('A scheduled album needs a future date and time.')
+    if (form.release_status === 'published' && !releaseAt) throw new Error('A published album needs a release date.')
+    const db = requireSupabase()
+    const patch = { title, release_status: form.release_status, release_at: releaseAt?.toISOString() ?? null }
+    const [albumResult, tracksResult] = await Promise.all([db.from('albums').update(patch).eq('id', album.id), db.from('tracks').update({ release_status: form.release_status, release_at: patch.release_at }).eq('album_id', album.id)])
+    if (albumResult.error) throw albumResult.error
+    if (tracksResult.error) throw tracksResult.error
+  }, onSuccess: async () => { await client.invalidateQueries({ queryKey: ['my-catalog'] }); setEditing(false) } })
+  if (!editing) return <ManagementRow cover={album.cover_url} title={album.title} meta={`${album.release_type} · ${album.release_status} · ${album.track_count ?? 0} tracks`} action={<div className="row-buttons"><Link className="button secondary" to={`/albums/${album.slug}`}>View</Link><button className="button secondary" onClick={() => setEditing(true)}>Edit</button></div>} />
+  return <form className="editor-row" onSubmit={(event) => { event.preventDefault(); save.mutate() }}><Cover src={album.cover_url} alt={album.title} /><div className="editor-fields"><label>Album title<input value={form.title} onChange={(event) => setForm((value) => ({ ...value, title: event.target.value }))} /></label><label>Status<select value={form.release_status} onChange={(event) => setForm((value) => ({ ...value, release_status: event.target.value as Album['release_status'] }))}><option value="draft">Draft</option><option value="scheduled">Scheduled</option><option value="published">Published</option><option value="archived">Archived</option></select></label><label>Release date and time<input type="datetime-local" value={form.release_at} onChange={(event) => setForm((value) => ({ ...value, release_at: event.target.value }))} /></label>{save.error && <p className="form-message error">{save.error.message}</p>}<div className="row-buttons"><button type="button" className="button secondary" onClick={() => setEditing(false)}>Cancel</button><button className="button primary" disabled={save.isPending}><Save />{save.isPending ? 'Saving...' : 'Save album'}</button></div></div></form>
 }
 
 function WatchOut({ tracks, albums }: { tracks: Track[]; albums: Album[] }) {
@@ -125,3 +165,11 @@ function SettingsPanel() {
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) { return <label className="toggle-row"><span>{label}</span><input type="checkbox" role="switch" checked={checked} onChange={(event) => onChange(event.target.checked)} /></label> }
 
 function ManagementRow({ cover, title, meta, action }: { cover?: string | null; title: string; meta: string; action?: React.ReactNode }) { return <div className="management-row"><Cover src={cover} alt={title} /><div><strong>{title}</strong><span>{meta}</span></div>{action}</div> }
+
+function toLocalDateTime(value: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return ''
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
+}

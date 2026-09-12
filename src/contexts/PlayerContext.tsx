@@ -23,6 +23,8 @@ interface PlayerContextValue {
   setShuffle: (value: boolean) => void
   setRepeat: (value: boolean) => void
   setExpanded: (value: boolean) => void
+  addToQueue: (track: Track) => void
+  moveQueueItem: (fromIndex: number, toIndex: number) => void
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(null)
@@ -52,21 +54,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [expanded, setExpanded] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const element = new Audio()
-    element.preload = 'auto'
-    element.volume = 0.85
-    audioRef.current = element
-    return () => {
-      element.pause()
-      element.removeAttribute('src')
-      audioRef.current = null
-    }
-  }, [])
-
   const setQueue = useCallback((items: Track[]) => {
     queueRef.current = items
     setQueueState(items)
+  }, [])
+
+  const addToQueue = useCallback((track: Track) => {
+    setQueueState((items) => {
+      if (items.some((item) => item.id === track.id)) return items
+      const nextItems = [...items, track]
+      queueRef.current = nextItems
+      return nextItems
+    })
+  }, [])
+
+  const moveQueueItem = useCallback((fromIndex: number, toIndex: number) => {
+    setQueueState((items) => {
+      if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) return items
+      const nextItems = [...items]
+      const [moved] = nextItems.splice(fromIndex, 1)
+      nextItems.splice(toIndex, 0, moved)
+      queueRef.current = nextItems
+      return nextItems
+    })
   }, [])
 
   const play = useCallback(async (track: Track, nextQueue?: Track[]) => {
@@ -131,19 +141,48 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const onPause = () => setPlaying(false)
     const onEnded = () => { void next() }
     const onError = () => setError('Playback was interrupted. Select the song to retry.')
+    const onPlaying = () => setError(null)
     audio.addEventListener('timeupdate', onTime)
     audio.addEventListener('play', onPlay)
     audio.addEventListener('pause', onPause)
     audio.addEventListener('ended', onEnded)
     audio.addEventListener('error', onError)
+    audio.addEventListener('playing', onPlaying)
     return () => {
       audio.removeEventListener('timeupdate', onTime)
       audio.removeEventListener('play', onPlay)
       audio.removeEventListener('pause', onPause)
       audio.removeEventListener('ended', onEnded)
       audio.removeEventListener('error', onError)
+      audio.removeEventListener('playing', onPlaying)
     }
   }, [next])
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    if (!current) {
+      navigator.mediaSession.metadata = null
+      return
+    }
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: current.title,
+      artist: current.artist?.display_name,
+      album: current.album?.title,
+      artwork: current.cover_url ? [{ src: current.cover_url, sizes: '512x512' }] : [],
+    })
+    const handlers: Array<[MediaSessionAction, MediaSessionActionHandler]> = [
+      ['play', () => { void audioRef.current?.play() }],
+      ['pause', () => audioRef.current?.pause()],
+      ['previoustrack', () => { void previous() }],
+      ['nexttrack', () => { void next() }],
+    ]
+    handlers.forEach(([action, handler]) => {
+      try { navigator.mediaSession.setActionHandler(action, handler) } catch { /* unsupported media action */ }
+    })
+    return () => handlers.forEach(([action]) => {
+      try { navigator.mediaSession.setActionHandler(action, null) } catch { /* unsupported media action */ }
+    })
+  }, [current, next, previous])
 
   const toggle = useCallback(async () => {
     const audio = audioRef.current
@@ -164,10 +203,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<PlayerContextValue>(() => ({
     current, queue, isPlaying, currentTime, duration, volume: volumeState, shuffle, repeat, expanded, error,
-    play, toggle, next, previous, seek, setVolume, setShuffle, setRepeat, setExpanded,
-  }), [current, currentTime, duration, error, expanded, isPlaying, next, play, previous, queue, repeat, seek, setVolume, shuffle, toggle, volumeState])
+    play, toggle, next, previous, seek, setVolume, setShuffle, setRepeat, setExpanded, addToQueue, moveQueueItem,
+  }), [addToQueue, current, currentTime, duration, error, expanded, isPlaying, moveQueueItem, next, play, previous, queue, repeat, seek, setVolume, shuffle, toggle, volumeState])
 
-  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>
+  return <PlayerContext.Provider value={value}>{children}<audio ref={audioRef} preload="auto" playsInline hidden /></PlayerContext.Provider>
 }
 
 export function usePlayer() {

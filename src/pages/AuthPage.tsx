@@ -58,7 +58,7 @@ export function AuthPage() {
   }
 
   return <div className="auth-page"><section className="auth-card">
-    <div className="auth-brand"><span className="brand-mark">S</span><div><strong>SHY MUSIC</strong><span>Closer to the music.</span></div></div>
+    <div className="auth-brand"><img className="brand-logo auth-logo" src={`${import.meta.env.BASE_URL}assets/brand/shy-logo-192.png`} alt="SHY Music" /><div><strong>SHY MUSIC</strong><span>Closer to the music.</span></div></div>
     {(mode === 'signin' || mode === 'signup') && <div className="segmented"><button className={mode === 'signin' ? 'active' : ''} onClick={() => { setMode('signin'); setError(''); setMessage('') }}>Sign in</button><button className={mode === 'signup' ? 'active' : ''} onClick={() => { setMode('signup'); setError(''); setMessage('') }}>Sign up</button></div>}
     <div className="auth-heading"><h1>{mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Join SHY' : mode === 'forgot' ? 'Reset your password' : 'Choose a new password'}</h1><p>{mode === 'signup' ? 'Choose how you want to use SHY.' : mode === 'recovery' ? 'Use a strong password you do not use elsewhere.' : 'Use the email connected to your account.'}</p></div>
     <form onSubmit={submit} className="form-stack">

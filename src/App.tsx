@@ -1,20 +1,27 @@
+import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
-import { AdminPage } from './pages/AdminPage'
-import { AlbumPage } from './pages/AlbumPage'
-import { ArtistPage } from './pages/ArtistPage'
-import { ArtistsPage } from './pages/ArtistsPage'
-import { AuthPage } from './pages/AuthPage'
-import { DashboardPage } from './pages/DashboardPage'
-import { DiscoverPage } from './pages/DiscoverPage'
-import { HomePage } from './pages/HomePage'
-import { LibraryPage } from './pages/LibraryPage'
-import { LegalPage, NotFoundPage, SupportPage } from './pages/SimplePages'
-import { TrackPage } from './pages/TrackPage'
-import { UploadPage } from './pages/UploadPage'
+import { LoadingState } from './components/States'
+
+const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })))
+const AlbumPage = lazy(() => import('./pages/AlbumPage').then((module) => ({ default: module.AlbumPage })))
+const ArtistPage = lazy(() => import('./pages/ArtistPage').then((module) => ({ default: module.ArtistPage })))
+const ArtistsPage = lazy(() => import('./pages/ArtistsPage').then((module) => ({ default: module.ArtistsPage })))
+const AuthPage = lazy(() => import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })))
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
+const DiscoverPage = lazy(() => import('./pages/DiscoverPage').then((module) => ({ default: module.DiscoverPage })))
+const HomePage = lazy(() => import('./pages/HomePage').then((module) => ({ default: module.HomePage })))
+const LibraryPage = lazy(() => import('./pages/LibraryPage').then((module) => ({ default: module.LibraryPage })))
+const TrackPage = lazy(() => import('./pages/TrackPage').then((module) => ({ default: module.TrackPage })))
+const UploadPage = lazy(() => import('./pages/UploadPage').then((module) => ({ default: module.UploadPage })))
+const simplePages = () => import('./pages/SimplePages')
+const AccountPage = lazy(() => simplePages().then((module) => ({ default: module.AccountPage })))
+const LegalPage = lazy(() => simplePages().then((module) => ({ default: module.LegalPage })))
+const NotFoundPage = lazy(() => simplePages().then((module) => ({ default: module.NotFoundPage })))
+const SupportPage = lazy(() => simplePages().then((module) => ({ default: module.SupportPage })))
 
 export default function App() {
-  return <Routes>
+  return <Suspense fallback={<LoadingState label="Loading SHY..." />}><Routes>
     <Route element={<Layout />}>
       <Route index element={<HomePage />} />
       <Route path="artists" element={<ArtistsPage />} />
@@ -29,7 +36,8 @@ export default function App() {
       <Route path="admin" element={<AdminPage />} />
       <Route path="legal" element={<LegalPage />} />
       <Route path="support" element={<SupportPage />} />
+      <Route path="account" element={<AccountPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Route>
-  </Routes>
+  </Routes></Suspense>
 }
