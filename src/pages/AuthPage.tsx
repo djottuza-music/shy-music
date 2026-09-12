@@ -3,15 +3,16 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
-type Mode = 'signin' | 'signup' | 'forgot'
+type Mode = 'signin' | 'signup' | 'forgot' | 'recovery'
 
 export function AuthPage() {
   const auth = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const [mode, setMode] = useState<Mode>('signin')
+  const [mode, setMode] = useState<Mode>(() => params.get('mode') === 'recovery' ? 'recovery' : 'signin')
   const [email, setEmail] = useState(() => localStorage.getItem('shy-remembered-email') ?? '')
   const [password, setPassword] = useState('')
+  const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [accountType, setAccountType] = useState<'listener' | 'artist'>('listener')
   const [remember, setRemember] = useState(Boolean(localStorage.getItem('shy-remembered-email')))
@@ -21,8 +22,8 @@ export function AuthPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (auth.user && params.get('mode') !== 'recovery') navigate('/', { replace: true })
-  }, [auth.user, navigate, params])
+    if (auth.user && mode !== 'recovery') navigate('/', { replace: true })
+  }, [auth.user, mode, navigate])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -30,7 +31,12 @@ export function AuthPage() {
     setError('')
     setMessage('')
     try {
-      if (mode === 'forgot') {
+      if (mode === 'recovery') {
+        if (password.length < 8) throw new Error('Use at least 8 characters for your new password.')
+        if (password !== passwordConfirmation) throw new Error('The passwords do not match.')
+        await auth.updatePassword(password)
+        setMessage('Your password has been updated. You can continue using SHY.')
+      } else if (mode === 'forgot') {
         await auth.requestPasswordReset(email.trim())
         setMessage('Password reset instructions were sent to your email.')
       } else if (mode === 'signup') {
@@ -53,16 +59,17 @@ export function AuthPage() {
 
   return <div className="auth-page"><section className="auth-card">
     <div className="auth-brand"><span className="brand-mark">S</span><div><strong>SHY MUSIC</strong><span>Closer to the music.</span></div></div>
-    {mode !== 'forgot' && <div className="segmented"><button className={mode === 'signin' ? 'active' : ''} onClick={() => { setMode('signin'); setError(''); setMessage('') }}>Sign in</button><button className={mode === 'signup' ? 'active' : ''} onClick={() => { setMode('signup'); setError(''); setMessage('') }}>Sign up</button></div>}
-    <div className="auth-heading"><h1>{mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Join SHY' : 'Reset your password'}</h1><p>{mode === 'signup' ? 'Choose how you want to use SHY.' : 'Use the email connected to your account.'}</p></div>
+    {(mode === 'signin' || mode === 'signup') && <div className="segmented"><button className={mode === 'signin' ? 'active' : ''} onClick={() => { setMode('signin'); setError(''); setMessage('') }}>Sign in</button><button className={mode === 'signup' ? 'active' : ''} onClick={() => { setMode('signup'); setError(''); setMessage('') }}>Sign up</button></div>}
+    <div className="auth-heading"><h1>{mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Join SHY' : mode === 'forgot' ? 'Reset your password' : 'Choose a new password'}</h1><p>{mode === 'signup' ? 'Choose how you want to use SHY.' : mode === 'recovery' ? 'Use a strong password you do not use elsewhere.' : 'Use the email connected to your account.'}</p></div>
     <form onSubmit={submit} className="form-stack">
       {mode === 'signup' && <><label>Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} autoComplete="name" required /></label><fieldset><legend>Account type</legend><div className="segmented"><button type="button" className={accountType === 'listener' ? 'active' : ''} onClick={() => setAccountType('listener')}>Listener</button><button type="button" className={accountType === 'artist' ? 'active' : ''} onClick={() => setAccountType('artist')}>Artist / songwriter</button></div></fieldset></>}
-      <label>Email address<div className="input-with-icon"><Mail /><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" required /></div></label>
+      {mode !== 'recovery' && <label>Email address<div className="input-with-icon"><Mail /><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" required /></div></label>}
       {mode !== 'forgot' && <label>Password<div className="input-with-icon"><LockKeyhole /><input type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} required minLength={8} /><button type="button" className="password-toggle" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff /> : <Eye />}</button></div></label>}
+      {mode === 'recovery' && <label>Confirm new password<div className="input-with-icon"><LockKeyhole /><input type={showPassword ? 'text' : 'password'} value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" required minLength={8} /></div></label>}
       {mode === 'signin' && <div className="form-split"><label className="check-label"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />Remember email</label><button type="button" className="text-button" onClick={() => setMode('forgot')}>Forgot password?</button></div>}
       {error && <p className="form-message error" role="alert">{error}</p>}
       {message && <p className="form-message success" role="status">{message}</p>}
-      <button className="button primary full" disabled={busy}>{busy ? 'Please wait...' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset email'}</button>
+      <button className="button primary full" disabled={busy}>{busy ? 'Please wait...' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : mode === 'forgot' ? 'Send reset email' : 'Update password'}</button>
       {mode === 'forgot' && <button type="button" className="text-button" onClick={() => setMode('signin')}>Back to sign in</button>}
     </form>
   </section></div>

@@ -23,6 +23,7 @@ interface AuthContextValue {
   signUp: (input: SignUpInput) => Promise<{ needsVerification: boolean }>
   signOut: () => Promise<void>
   requestPasswordReset: (email: string) => Promise<void>
+  updatePassword: (password: string) => Promise<void>
   refreshProfile: () => Promise<void>
 }
 
@@ -102,6 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
   }, [])
 
+  const updatePassword = useCallback(async (password: string) => {
+    if (!supabase) throw new Error('SHY is not connected to Supabase yet.')
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+  }, [])
+
   const roles = useMemo(() => profile?.roles ?? [], [profile?.roles])
   const value = useMemo<AuthContextValue>(() => ({
     session,
@@ -115,8 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signOut,
     requestPasswordReset,
+    updatePassword,
     refreshProfile,
-  }), [loading, profile, refreshProfile, requestPasswordReset, session, signIn, signOut, signUp, roles])
+  }), [loading, profile, refreshProfile, requestPasswordReset, session, signIn, signOut, signUp, updatePassword, roles])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
