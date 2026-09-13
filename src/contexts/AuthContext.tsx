@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Session, User } from '@supabase/supabase-js'
 import type { Profile, Role } from '../types'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
-import { canUseAccountMode, readAccountMode, storeAccountMode, type AccountMode } from '../lib/accountMode'
+import { canUseAccountMode, hasArtistAccess, readAccountMode, storeAccountMode, type AccountMode } from '../lib/accountMode'
 
 interface SignUpInput {
   email: string
@@ -22,6 +22,7 @@ interface AuthContextValue {
   isArtist: boolean
   isAdmin: boolean
   signIn: (email: string, password: string, mode: AccountMode) => Promise<void>
+  activateArtist: () => Promise<void>
   setAccountMode: (mode: AccountMode) => void
   signUp: (input: SignUpInput) => Promise<{ needsVerification: boolean }>
   resendSignUpConfirmation: (email: string) => Promise<void>
@@ -70,6 +71,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session?.user.id) await loadProfile(session.user.id)
   }, [loadProfile, session])
 
+  const enrollArtist = useCallback(async (userId: string) => {
+    if (!supabase) throw new Error('SHY is not connected to Supabase yet.')
+    const { error } = await supabase.rpc('enroll_as_artist')
+    if (error) throw new Error('Artist access could not be enabled. Please try again or contact SHY support.')
+    const nextProfile = await loadProfile(userId)
+    if (!hasArtistAccess(nextProfile?.roles ?? [])) throw new Error('Artist access could not be verified. Please contact SHY support.')
+    activeModeRef.current = 'artist'
+    setActiveModeState('artist')
+    storeAccountMode('artist')
+  }, [loadProfile])
+
+  const activateArtist = useCallback(async () => {
+    const userId = session?.user.id
+    if (!userId) throw new Error('Sign in before opening artist tools.')
+    await enrollArtist(userId)
+  }, [enrollArtist, session?.user.id])
+
   useEffect(() => {
     if (!supabase) {
       return
@@ -101,8 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextProfile = await loadProfile(data.user.id)
       let roles = nextProfile?.roles ?? []
       if (!canUseAccountMode(roles, mode)) {
-        const { error: enrollmentError } = await supabase.rpc('enroll_as_artist')
-        if (enrollmentError) throw new Error('Artist access could not be enabled. Please try again or contact SHY support.')
+        await enrollArtist(data.user.id)
         roles = (await loadProfile(data.user.id))?.roles ?? []
         if (!canUseAccountMode(roles, mode)) throw new Error('Artist access could not be verified. Please contact SHY support.')
       }
@@ -113,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut()
       throw caught
     }
-  }, [loadProfile])
+  }, [enrollArtist, loadProfile])
 
   const resendSignUpConfirmation = useCallback(async (email: string) => {
     if (!supabase) throw new Error('SHY is not connected to Supabase yet.')
@@ -169,9 +186,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     configured: isSupabaseConfigured,
     activeMode,
-    isArtist: activeMode === 'artist' && (roles.includes('artist') || roles.includes('admin')),
-    isAdmin: activeMode === 'artist' && roles.includes('admin'),
+    isArtist: hasArtistAccess(roles),
+    isAdmin: roles.includes('admin'),
     signIn,
+    activateArtist,
     setAccountMode,
     signUp,
     resendSignUpConfirmation,
@@ -179,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     requestPasswordReset,
     updatePassword,
     refreshProfile,
-  }), [activeMode, loading, profile, refreshProfile, requestPasswordReset, resendSignUpConfirmation, session, setAccountMode, signIn, signOut, signUp, updatePassword, roles])
+  }), [activateArtist, activeMode, loading, profile, refreshProfile, requestPasswordReset, resendSignUpConfirmation, session, setAccountMode, signIn, signOut, signUp, updatePassword, roles])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
