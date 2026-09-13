@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadProfile = useCallback(async (userId: string) => {
     if (!supabase) return setProfile(null)
     const [{ data: profileRow, error }, { data: roleRows }] = await Promise.all([
-      supabase.from('profiles').select('id,display_name,username,avatar_url').eq('id', userId).maybeSingle(),
+      supabase.from('profiles').select('id,display_name,username,avatar_url,is_admin,is_platform_verified').eq('id', userId).maybeSingle(),
       supabase.from('user_roles').select('role').eq('user_id', userId),
     ])
     if (error) throw error
@@ -187,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     configured: isSupabaseConfigured,
     activeMode,
     isArtist: hasArtistAccess(roles),
-    isAdmin: roles.includes('admin'),
+    isAdmin: Boolean(profile?.is_admin || roles.includes('admin')),
     signIn,
     activateArtist,
     setAccountMode,

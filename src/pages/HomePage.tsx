@@ -1,35 +1,89 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { Disc3, Headphones, Music2, Pause, Play, Share2 } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listArtists, listFreshTracks, listPublishedAlbums, listPublishedTracks } from '../lib/catalog'
-import { isSupabaseConfigured } from '../lib/supabase'
-import { AlbumCard, ArtistCard, TrackCard } from '../components/Cards'
-import { EmptyState, ErrorState, LoadingState } from '../components/States'
+import { MotivateButton } from '../components/MotivateButton'
 import { Shelf } from '../components/Shelf'
+import { Cover, EmptyState, ErrorState, LoadingState } from '../components/States'
+import { VerifiedBadge } from '../components/VerifiedBadge'
+import { usePlayer } from '../contexts/PlayerContext'
+import { getAlbum, getFanOfTheWeek, listPublishedAlbums, listPublishedTracks, listRankedAlbums, listRankedTracks } from '../lib/catalog'
+import { formatCount } from '../lib/format'
+import { isSupabaseConfigured } from '../lib/supabase'
+import type { Album, Track } from '../types'
+import { useTrackStreamCount } from '../hooks/useTrackStreamCount'
 
 export function HomePage() {
-  const tracks = useQuery({ queryKey: ['tracks', 'trending'], queryFn: () => listPublishedTracks(30), enabled: isSupabaseConfigured })
-  const fresh = useQuery({ queryKey: ['tracks', 'fresh'], queryFn: () => listFreshTracks(20), enabled: isSupabaseConfigured })
-  const albums = useQuery({ queryKey: ['albums'], queryFn: () => listPublishedAlbums(20), enabled: isSupabaseConfigured })
-  const artists = useQuery({ queryKey: ['artists'], queryFn: listArtists, enabled: isSupabaseConfigured })
+  const trending = useQuery({ queryKey: ['home-ranking', 'plays', 7], queryFn: async () => { const items = await listRankedTracks('plays', 7, 20); return items.length ? items : listPublishedTracks(20) }, enabled: isSupabaseConfigured })
+  const fansLove = useQuery({ queryKey: ['home-ranking', 'listeners', 7], queryFn: async () => { const items = await listRankedTracks('listeners', 7, 20); return items.length ? items : listPublishedTracks(20) }, enabled: isSupabaseConfigured })
+  const fan = useQuery({ queryKey: ['fan-of-the-week'], queryFn: getFanOfTheWeek, enabled: isSupabaseConfigured })
+  const weeklyAlbums = useQuery({ queryKey: ['album-ranking', 7], queryFn: async () => { const items = await listRankedAlbums(7, 4); return items.length ? items : listPublishedAlbums(4) }, enabled: isSupabaseConfigured })
+  const monthlyAlbums = useQuery({ queryKey: ['album-ranking', 30], queryFn: async () => { const items = await listRankedAlbums(30, 4); return items.length ? items : listPublishedAlbums(4) }, enabled: isSupabaseConfigured })
 
   if (!isSupabaseConfigured) return <SetupPanel />
-  if (tracks.isLoading || albums.isLoading || artists.isLoading) return <LoadingState />
-  if (tracks.error) return <ErrorState error={tracks.error} retry={() => tracks.refetch()} />
-  const trending = tracks.data ?? []
-  const albumOfTheWeek = [...(albums.data ?? [])].sort((left, right) => (right.stream_count ?? 0) - (left.stream_count ?? 0))[0]
-
+  if (trending.error) return <ErrorState error={trending.error} retry={() => trending.refetch()} />
+  const songs = trending.data ?? []
   return <div className="home-page">
-    <section className="home-intro"><div><span className="eyebrow"><Sparkles />Independent music, closer</span><h1>What should we play?</h1><p>Fresh music from artists who own their sound.</p></div></section>
-    <Shelf title="Trending Now" action={<Link to="/discover">See all <ArrowRight /></Link>}>{trending.map((track) => <TrackCard key={track.id} track={track} queue={trending} />)}</Shelf>
-    {(fresh.data?.length ?? 0) > 0 && <Shelf title="Fresh Drops">{fresh.data!.map((track) => <TrackCard key={track.id} track={track} queue={fresh.data!} />)}</Shelf>}
-    {albumOfTheWeek && <Shelf title="Album of the Week" action={<Link to={`/albums/${albumOfTheWeek.slug}`}>Open album <ArrowRight /></Link>}><AlbumCard album={albumOfTheWeek} /></Shelf>}
-    {(albums.data?.length ?? 0) > 0 && <Shelf title="Albums to know">{albums.data!.map((album) => <AlbumCard key={album.id} album={album} />)}</Shelf>}
-    {(artists.data?.length ?? 0) > 0 && <Shelf title="Rising Artists">{artists.data!.map((artist) => <ArtistCard key={artist.id} artist={artist} />)}</Shelf>}
-    {trending.length === 0 && <EmptyState title="The stage is ready" text="Published music will appear here as soon as the first artist goes live." />}
+    {trending.isLoading ? <LoadingState label="Loading Track of the Week" /> : songs[0] ? <TrackOfWeek track={songs[0]} queue={songs} /> : <EmptyState title="The stage is ready" text="Published music will appear here as soon as the first artist goes live." />}
+    {fan.isLoading ? <LoadingState label="Loading Fan of the Week" /> : <FanBanner fan={fan.data ?? null} />}
+    <Shelf title="Trending Now" action={<Link to="/charts">See all</Link>}>{trending.isLoading ? <ShelfSkeleton /> : songs.map((track) => <HomeTrackCard key={track.id} track={track} queue={songs} />)}</Shelf>
+    <Shelf title="Fans Love" action={<Link to="/charts">See all</Link>}>{fansLove.isLoading ? <ShelfSkeleton /> : (fansLove.data ?? []).map((track) => <HomeTrackCard key={track.id} track={track} queue={fansLove.data ?? []} />)}</Shelf>
+    <FeatureAlbums title="Album of the Week" albums={weeklyAlbums.data ?? []} loading={weeklyAlbums.isLoading} />
+    <FeatureAlbums title="Album of the Month" albums={monthlyAlbums.data ?? []} loading={monthlyAlbums.isLoading} />
   </div>
 }
 
+function TrackOfWeek({ track, queue }: { track: Track; queue: Track[] }) {
+  const player = usePlayer()
+  const active = player.current?.id === track.id
+  const streamCount = useTrackStreamCount(track.id, track.plays_count)
+  const toggle = () => active ? player.toggle() : player.play(track, queue)
+  return <section className="week-hero">
+    <div className="week-copy"><span className="week-brand"><img src={import.meta.env.BASE_URL + 'assets/brand/shy-logo-192.png'} alt="SHY Music logo" /><b>SHY<small>MUSIC</small></b></span><span className="eyebrow">Track of the week</span><h1 title={track.title}>{track.title}</h1><p>by {track.artist ? <Link to={'/artists/' + track.artist.slug}>{track.artist.display_name}{track.artist.verified && <VerifiedBadge />}</Link> : 'SHY Artist'}{track.ai_tool ? ' · Made with ' + track.ai_tool : ''}{track.genres?.[0] ? ' · ' + track.genres[0] : ''}</p><button className="button primary week-play" onClick={() => void toggle()}>{active && player.isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}{active && player.isPlaying ? 'Pause' : 'Play now'}</button></div>
+    <button className={'week-art ' + (active && player.isPlaying ? 'playing' : '')} onClick={() => void toggle()} aria-label={(active && player.isPlaying ? 'Pause ' : 'Play ') + track.title}><Cover src={track.cover_url} alt={track.title + ' by ' + (track.artist?.display_name ?? 'SHY Artist') + ' cover art'} /></button>
+    <div className="week-streams"><strong>{formatCount(streamCount)}</strong><span>total streams</span></div>
+  </section>
+}
+
+function HomeTrackCard({ track, queue }: { track: Track; queue: Track[] }) {
+  const player = usePlayer()
+  const active = player.current?.id === track.id
+  const streamCount = useTrackStreamCount(track.id, track.plays_count)
+  const toggle = () => active ? player.toggle() : player.play(track, queue)
+  const share = async () => {
+    const url = window.location.origin + import.meta.env.BASE_URL + 'tracks/' + track.slug
+    if (navigator.share) await navigator.share({ title: track.title + ' on SHY', url }).catch(() => undefined)
+    else await navigator.clipboard.writeText(url)
+  }
+  return <article className="home-track-card"><div className={'home-track-art ' + (active && player.isPlaying ? 'playing' : '')}><Cover src={track.cover_url} alt={track.title + ' by ' + (track.artist?.display_name ?? 'SHY Artist') + ' cover art'} /><span className="track-hover-shade" /><button className="play-song-pill" onClick={() => void toggle()} aria-label={(active && player.isPlaying ? 'Pause ' : 'Play ') + track.title}>{active && player.isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}{active && player.isPlaying ? 'Pause' : 'Play song'}</button><button className="track-share" onClick={() => void share()} aria-label={'Share ' + track.title}><Share2 /></button></div><Link className="card-title" title={track.title} to={'/tracks/' + track.slug}>{track.title}</Link>{track.artist && <Link className="card-artist" title={track.artist.display_name} to={'/artists/' + track.artist.slug}>{track.artist.display_name}{track.artist.verified && <VerifiedBadge />}</Link>}<small className="stream-count"><Headphones />{formatCount(streamCount)} streams</small>{track.artist?.motivation_phone && <MotivateButton artistId={track.artist_id} artistName={track.artist.display_name} phone={track.artist.motivation_phone} />}</article>
+}
+
+function FanBanner({ fan }: { fan: Awaited<ReturnType<typeof getFanOfTheWeek>> }) {
+  const player = usePlayer()
+  if (!fan) return <section className="fan-banner fan-empty"><div><span className="eyebrow">Fan of the week</span><h2><Headphones />Keep listening to claim this spot!</h2><p>Every qualified play brings a listener closer to the weekly spotlight.</p></div></section>
+  return <section className="fan-banner"><div><span className="eyebrow">Fan of the week</span><div className="fan-person"><Cover src={fan.profile?.avatar_url} alt={(fan.profile?.display_name ?? 'SHY fan') + ' profile photo'} /><span><h2>{fan.profile?.display_name ?? 'SHY fan'}</h2><p>{fan.artist?.display_name ?? 'SHY Artist'}{fan.artist?.verified && <VerifiedBadge />} · {formatCount(fan.total_plays)} fan plays</p></span></div></div>{fan.track && <button className="fan-play" onClick={() => void player.play(fan.track!)} aria-label={'Play ' + fan.track.title}><Play fill="currentColor" /></button>}</section>
+}
+
+function FeatureAlbums({ title, albums, loading }: { title: string; albums: Album[]; loading: boolean }) {
+  return <section className="feature-albums"><div className="section-heading"><h2>{title}</h2></div>{loading ? <div className="feature-album-grid"><i className="skeleton-block album-skeleton" /><i className="skeleton-block album-skeleton" /></div> : albums.length ? <div className="feature-album-grid">{albums.map((album) => <FeatureAlbumCard key={album.id} album={album} />)}</div> : <EmptyState title={'No ' + title.toLowerCase() + ' yet'} text="Listening activity will choose this feature automatically." />}</section>
+}
+
+function FeatureAlbumCard({ album }: { album: Album }) {
+  const player = usePlayer()
+  const [busy, setBusy] = useState(false)
+  const play = async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      const result = await getAlbum(album.slug)
+      if (result.tracks[0]) await player.play(result.tracks[0], result.tracks)
+    } finally { setBusy(false) }
+  }
+  return <article className="feature-album-card"><div className="feature-album-art"><Link to={'/albums/' + album.slug}><Cover src={album.cover_url} alt={album.title + ' by ' + (album.artist?.display_name ?? 'SHY Artist') + ' cover art'} /></Link><button className="play-song-pill" onClick={() => void play()} disabled={busy} aria-label={'Play ' + album.title}><Play fill="currentColor" />{busy ? 'Loading' : 'Play album'}</button></div><Link className="card-title" title={album.title} to={'/albums/' + album.slug}>{album.title}</Link>{album.artist && <Link className="card-artist" to={'/artists/' + album.artist.slug}>{album.artist.display_name}{album.artist.verified && <VerifiedBadge />}</Link>}<small className="album-stats"><span><Disc3 />{album.track_count ?? 0}</span><span><Headphones />{formatCount(album.stream_count ?? 0)}</span></small></article>
+}
+
+function ShelfSkeleton() { return <>{Array.from({ length: 5 }, (_, index) => <i key={index} className="skeleton-block track-card-skeleton" />)}</> }
+
 function SetupPanel() {
-  return <section className="setup-panel"><span className="eyebrow">New SHY backend</span><h1>Connect the music catalog</h1><p>This clean rebuild is ready for its new Supabase project. Once the database URL and publishable key are added, real artists, albums, and tracks will appear here.</p><code>VITE_SUPABASE_URL</code><code>VITE_SUPABASE_PUBLISHABLE_KEY</code></section>
+  return <section className="setup-panel"><span className="eyebrow"><Music2 />SHY backend</span><h1>Connect the music catalog</h1><p>Add the Supabase project URL and publishable key to load real artists and releases.</p><code>VITE_SUPABASE_URL</code><code>VITE_SUPABASE_PUBLISHABLE_KEY</code></section>
 }

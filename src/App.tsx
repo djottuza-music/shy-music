@@ -29,8 +29,11 @@ export default function App() {
       <Route index element={<HomePage />} />
       <Route path="artists" element={<ArtistsPage />} />
       <Route path="artists/:slug" element={<ArtistPage />} />
+      <Route path="artist/:slug" element={<ArtistPage />} />
       <Route path="albums/:slug" element={<AlbumPage />} />
+      <Route path="album/:slug" element={<AlbumPage />} />
       <Route path="tracks/:slug" element={<TrackPage />} />
+      <Route path="song/:slug" element={<TrackPage />} />
       <Route path="library" element={<LibraryPage />} />
       <Route path="playlists/:id" element={<PlaylistPage />} />
       <Route path="discover" element={<DiscoverPage />} />

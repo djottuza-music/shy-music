@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Heart, ListPlus, MoreHorizontal, Pause, Play, Share2 } from 'lucide-react'
+import { AudioLines, Download, Heart, ListPlus, MoreHorizontal, Pause, Play, Share2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Track } from '../types'
@@ -10,6 +10,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { usePlayer } from '../contexts/PlayerContext'
 import { useTrackLike } from '../hooks/social'
 import { Cover } from './States'
+import { MetadataChips } from './MetadataChips'
+import { VerifiedBadge } from './VerifiedBadge'
+import { useTrackStreamCount } from '../hooks/useTrackStreamCount'
 
 export function TrackRow({ track, queue, index, compact = false }: { track: Track; queue: Track[]; index?: number; compact?: boolean }) {
   const player = usePlayer()
@@ -17,6 +20,7 @@ export function TrackRow({ track, queue, index, compact = false }: { track: Trac
   const queryClient = useQueryClient()
   const like = useTrackLike(track.id)
   const active = player.current?.id === track.id
+  const streamCount = useTrackStreamCount(track.id, track.plays_count)
   const [downloading, setDownloading] = useState(false)
   const [message, setMessage] = useState('')
   const [moreOpen, setMoreOpen] = useState(false)
@@ -81,14 +85,15 @@ export function TrackRow({ track, queue, index, compact = false }: { track: Trac
   }
 
   return <article className={`track-row ${active ? 'active' : ''} ${compact ? 'compact' : ''}`} data-testid={`track-${track.id}`}>
-    {index !== undefined && <span className="track-index">{index + 1}</span>}
+    {index !== undefined && <span className={`track-index ${active && player.isPlaying ? 'playing' : ''}`}>{active && player.isPlaying ? <AudioLines /> : index + 1}</span>}
     <button className="track-play" onClick={toggle} aria-label={`${active && player.isPlaying ? 'Pause' : 'Play'} ${track.title}`}>
-      <Cover src={track.cover_url} alt={track.title} />
+      <Cover src={track.cover_url} alt={`${track.title} by ${track.artist?.display_name ?? 'SHY Artist'} cover art`} />
       <span className="play-overlay">{active && player.isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</span>
     </button>
     <div className="track-copy">
-      <Link to={`/tracks/${track.slug}`} className="track-title">{track.title}</Link>
-      <span>{track.artist?.display_name ?? 'SHY Artist'} · {formatCount(track.plays_count)} streams</span>
+      <div className="track-title-line"><Link to={`/tracks/${track.slug}`} className="track-title" title={track.title}>{track.title}</Link>{track.explicit && <span className="explicit-badge">E</span>}{track.is_bonus && <span className="metadata-chip warning">Bonus</span>}</div>
+      <span>{track.artist?.display_name ?? 'SHY Artist'}{track.artist?.verified && <VerifiedBadge />} · {formatCount(streamCount)} streams</span>
+      <MetadataChips values={[...(track.genres ?? []).slice(0, 1), ...(track.moods ?? []).slice(0, 1)]} tone="neutral" />
       {message && <small role="status">{message}</small>}
     </div>
     <span className="track-duration">{formatDuration(track.duration_seconds)}</span>

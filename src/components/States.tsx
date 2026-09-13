@@ -1,7 +1,8 @@
-import { AlertTriangle, LoaderCircle, Music2 } from 'lucide-react'
+import { useState } from 'react'
+import { AlertTriangle, Music2 } from 'lucide-react'
 
 export function LoadingState({ label = 'Loading SHY...' }: { label?: string }) {
-  return <div className="state"><LoaderCircle className="spin" aria-hidden="true" /><span>{label}</span></div>
+  return <div className="skeleton-state" role="status" aria-live="polite"><span className="sr-only">{label}</span><i className="skeleton-block skeleton-title" /><i className="skeleton-block" /><i className="skeleton-block skeleton-short" /></div>
 }
 
 export function EmptyState({ title, text }: { title: string; text?: string }) {
@@ -14,6 +15,7 @@ export function ErrorState({ error, retry }: { error: unknown; retry?: () => voi
 }
 
 export function Cover({ src, alt, className = '' }: { src?: string | null; alt: string; className?: string }) {
-  if (src) return <img className={`cover ${className}`} src={src} alt={alt} loading="lazy" />
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  if (src && failedSrc !== src) return <img className={`cover ${className}`} src={src} alt={alt} loading="lazy" onError={() => setFailedSrc(src)} />
   return <div className={`cover cover-fallback ${className}`} role="img" aria-label={`${alt} cover`}><span>SHY</span></div>
 }

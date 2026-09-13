@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save, Send, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { requireSupabase } from '../lib/supabase'
 import { LoadingState } from '../components/States'
@@ -47,4 +47,4 @@ export function AccountPage() {
   return <div><div className="page-heading"><div><span className="eyebrow">Your account</span><h1>Account settings</h1><p>Manage the name shown across SHY and request help with account removal.</p></div></div><div className="account-grid"><form className="dashboard-panel form-stack" onSubmit={(event) => { event.preventDefault(); save.mutate() }}><h2>Profile</h2><label>Email<input value={auth.user.email ?? ''} readOnly /></label><label>Display name<input value={displayName} minLength={2} maxLength={80} onChange={(event) => setDisplayName(event.target.value)} /></label>{save.error && <p className="form-message error">{save.error.message}</p>}{save.isSuccess && <p className="form-message success">Profile saved.</p>}<button className="button primary" disabled={save.isPending}><Save />Save profile</button></form><section className="dashboard-panel form-stack danger-zone"><h2>Account deletion</h2>{deletion.isLoading ? <p>Checking request status...</p> : deletion.data ? <p role="status">Your deletion request is <strong>{deletion.data.status}</strong>. A restricted administrator must review catalogue ownership and associated data before completion.</p> : <><p>Request removal of your account and associated profile data. Artist catalogue ownership must be reviewed before deletion to prevent accidental loss.</p><label>Reason (optional)<textarea rows={4} maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} /></label>{requestDeletion.error && <p className="form-message error">{requestDeletion.error.message}</p>}<button className="button danger" disabled={requestDeletion.isPending} onClick={() => requestDeletion.mutate()}><Trash2 />{requestDeletion.isPending ? 'Sending request...' : 'Request account deletion'}</button></>}</section></div></div>
 }
 
-export function NotFoundPage() { return <article className="state state-card"><h1>Page not found</h1><a className="button primary" href={import.meta.env.BASE_URL}>Go home</a></article> }
+export function NotFoundPage() { return <article className="state state-card not-found"><img src={`${import.meta.env.BASE_URL}assets/brand/shy-logo-192.png`} alt="SHY Music logo" /><h1>404 — This page doesn't exist</h1><p>The song you're looking for might have moved.</p><Link className="button primary" to="/">Go Home</Link></article> }

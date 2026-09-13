@@ -4,7 +4,12 @@ export type RadioFilter = { kind: 'all' } | { kind: 'mood' | 'genre'; value: str
 
 export function tracksForStation(tracks: Track[], filter: RadioFilter) {
   if (filter.kind === 'all') return [...tracks]
-  return tracks.filter((track) => (track[filter.kind] ?? '').toLocaleLowerCase() === filter.value.toLocaleLowerCase())
+  const target = filter.value.toLocaleLowerCase()
+  return tracks.filter((track) => {
+    const values = filter.kind === 'genre' ? track.genres : track.moods
+    if (values?.length) return values.some((value) => value.toLocaleLowerCase() === target)
+    return (track[filter.kind] ?? '').toLocaleLowerCase() === target
+  })
 }
 
 export function shuffled<T>(items: T[], random = Math.random) {

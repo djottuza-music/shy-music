@@ -1,131 +1,84 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, ImagePlus, Music2, Trash2, UploadCloud } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
-import { LoadingState } from '../components/States'
+import { Album, ArrowRight, Clock3, FileAudio, Music2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { AlbumUploadFlow } from '../components/upload/AlbumUploadFlow'
+import { SingleUploadFlow } from '../components/upload/SingleUploadFlow'
+import { Cover, EmptyState, ErrorState, LoadingState } from '../components/States'
 import { useAuth } from '../contexts/AuthContext'
-import { slugify } from '../lib/format'
-import { requireSupabase } from '../lib/supabase'
+import { formatReleaseDate } from '../lib/format'
+import { publicStorageUrl, requireSupabase } from '../lib/supabase'
 
-const moods = ['Happy','Joyful','Cheerful','Uplifting','Energetic','Exciting','Playful','Fun','Hopeful','Motivational','Confident','Powerful','Triumphant','Peaceful','Calm','Relaxing','Dreamy','Gentle','Romantic','Passionate','Flirty','Sensual','Emotional','Heartfelt','Nostalgic','Sentimental','Reflective','Thoughtful','Melancholic','Sad','Heartbroken','Lonely','Regretful','Dark','Mysterious','Haunting','Suspenseful','Angry','Aggressive','Rebellious','Intense','Anxious','Tense','Spiritual','Inspirational','Carefree','Chill','Groovy','Euphoric','Bittersweet','Cinematic','Epic','Adventurous','Festive','Romantic and sad','Calm and emotional','Dark and energetic','Nostalgic and hopeful','Dreamy and peaceful']
-const genres = ['Afropop','Afrobeats','Electronic','Hip-hop','R&B','Gospel','Pop','Amapiano','Dancehall','Reggae','Jazz','Soul','Rock','Other']
-
-type UploadMode = 'single' | 'album'
-interface AlbumTrackInput { id: string; file: File; title: string }
+type UploadKind = 'single' | 'album'
+interface ArtistIdentity { id: string; slug: string }
+interface DraftItem { id: string; title: string; slug: string; cover_path: string | null; release_type?: string; updated_at?: string; created_at: string; kind: UploadKind }
 
 export function UploadPage() {
   const auth = useAuth()
-  const navigate = useNavigate()
-  const client = useQueryClient()
-  const [mode, setMode] = useState<UploadMode>('single')
-  const [releaseType, setReleaseType] = useState<'album' | 'ep'>('album')
-  const [title, setTitle] = useState('')
-  const [genre, setGenre] = useState('Afropop')
-  const [mood, setMood] = useState('')
-  const [releaseAt, setReleaseAt] = useState('')
-  const [cover, setCover] = useState<File | null>(null)
-  const [audio, setAudio] = useState<File | null>(null)
-  const [albumTracks, setAlbumTracks] = useState<AlbumTrackInput[]>([])
-  const [explicit, setExplicit] = useState(false)
-  const [progress, setProgress] = useState('')
-  const coverPreview = useMemo(() => cover ? URL.createObjectURL(cover) : '', [cover])
-  useEffect(() => () => { if (coverPreview) URL.revokeObjectURL(coverPreview) }, [coverPreview])
-  const artist = useQuery({ queryKey: ['my-artist', auth.user?.id], queryFn: async () => {
-    const { data, error } = await requireSupabase().from('artists').select('id,slug').eq('user_id', auth.user!.id).single()
-    if (error) throw error
-    return data as { id: string; slug: string }
-  }, enabled: Boolean(auth.user && auth.isArtist) })
+  const [params, setParams] = useSearchParams()
+  const requested = params.get('type')
+  const [kind, setKind] = useState<UploadKind | null>(requested === 'single' || requested === 'album' ? requested : null)
 
-  const publish = useMutation({ mutationFn: async () => {
-    if (!artist.data) throw new Error('Artist profile is not ready.')
-    const cleanTitle = title.trim()
-    if (!cleanTitle) throw new Error(`Enter ${mode === 'single' ? 'a song' : 'an album'} title.`)
-    if (!cover) throw new Error('Choose cover art.')
-    validateCover(cover)
-    const schedule = new Date(releaseAt)
-    if (!releaseAt || !Number.isFinite(schedule.getTime()) || schedule <= new Date(Date.now() + 5 * 60_000)) throw new Error('Schedule the release at least 5 minutes from now.')
-    if (mode === 'single' && !audio) throw new Error('Choose an audio file.')
-    if (mode === 'album' && albumTracks.length < 2) throw new Error('Choose at least two audio files for an album or EP.')
-    const db = requireSupabase()
-    const releaseId = crypto.randomUUID()
-    const safeTitle = slugify(cleanTitle) || releaseId
-    const coverExtension = fileExtension(cover.name, 'png')
-    const coverPath = `${artist.data.id}/${mode === 'single' ? 'tracks' : 'albums'}/${releaseId}-${safeTitle}.${coverExtension}`
-    const uploadedAudio: string[] = []
-    let albumId: string | null = null
-    setProgress('Uploading cover art...')
-    const coverUpload = await db.storage.from('covers').upload(coverPath, cover, { upsert: false, contentType: cover.type || `image/${coverExtension}` })
-    if (coverUpload.error) throw coverUpload.error
-    try {
-      if (mode === 'single') {
-        validateAudio(audio!)
-        setProgress('Reading audio and uploading song...')
-        const audioPath = `${artist.data.id}/tracks/${releaseId}-${safeTitle}.${fileExtension(audio!.name, 'mp3')}`
-        const duration = await readAudioDuration(audio!)
-        const audioUpload = await db.storage.from('audio').upload(audioPath, audio!, { upsert: false, contentType: audio!.type || 'audio/mpeg' })
-        if (audioUpload.error) throw audioUpload.error
-        uploadedAudio.push(audioPath)
-        const { error } = await db.from('tracks').insert({ id: releaseId, artist_id: artist.data.id, title: cleanTitle, slug: `${safeTitle}-${releaseId.slice(0, 8)}`, audio_path: audioPath, cover_path: coverPath, duration_seconds: Math.round(duration), genre, mood: mood || null, explicit, downloadable: true, release_status: 'scheduled', release_at: schedule.toISOString() })
-        if (error) throw error
-      } else {
-        albumTracks.forEach((track) => { validateAudio(track.file); if (!track.title.trim()) throw new Error('Every track needs a title.') })
-        albumId = releaseId
-        const albumSlug = `${safeTitle}-${releaseId.slice(0, 8)}`
-        const albumInsert = await db.from('albums').insert({ id: albumId, artist_id: artist.data.id, title: cleanTitle, slug: albumSlug, cover_path: coverPath, release_type: releaseType, release_status: 'scheduled', release_at: schedule.toISOString() })
-        if (albumInsert.error) throw albumInsert.error
-        for (const [index, track] of albumTracks.entries()) {
-          setProgress(`Uploading track ${index + 1} of ${albumTracks.length}: ${track.title}`)
-          const trackId = crypto.randomUUID()
-          const trackSlugBase = slugify(track.title) || trackId
-          const audioPath = `${artist.data.id}/tracks/${trackId}-${trackSlugBase}.${fileExtension(track.file.name, 'mp3')}`
-          const duration = await readAudioDuration(track.file)
-          const upload = await db.storage.from('audio').upload(audioPath, track.file, { upsert: false, contentType: track.file.type || 'audio/mpeg' })
-          if (upload.error) throw upload.error
-          uploadedAudio.push(audioPath)
-          const insert = await db.from('tracks').insert({ id: trackId, artist_id: artist.data.id, album_id: albumId, title: track.title.trim(), slug: `${albumSlug}-${trackSlugBase}-${trackId.slice(0, 5)}`, audio_path: audioPath, cover_path: coverPath, duration_seconds: Math.round(duration), track_number: index + 1, genre, mood: mood || null, explicit, downloadable: true, release_status: 'scheduled', release_at: schedule.toISOString() })
-          if (insert.error) throw insert.error
-        }
-      }
-    } catch (error) {
-      if (albumId) await db.from('albums').delete().eq('id', albumId)
-      if (uploadedAudio.length) await db.storage.from('audio').remove(uploadedAudio)
-      await db.storage.from('covers').remove([coverPath])
-      throw error
-    }
-  }, onSuccess: async () => { setProgress('Release scheduled.'); await client.invalidateQueries({ queryKey: ['my-catalog'] }); navigate('/dashboard?tab=watch') }, onError: () => setProgress('') })
+  const artist = useQuery({
+    queryKey: ['my-artist', auth.user?.id],
+    queryFn: async () => {
+      const { data, error } = await requireSupabase().from('artists').select('id,slug').eq('user_id', auth.user!.id).single()
+      if (error) throw error
+      return data as ArtistIdentity
+    },
+    enabled: Boolean(auth.user && auth.isArtist),
+  })
+  const subscription = useQuery({
+    queryKey: ['artist-subscription', artist.data?.id],
+    queryFn: async () => {
+      const { data, error } = await requireSupabase().from('artist_subscriptions').select('status,plan_name,expires_at').eq('artist_id', artist.data!.id).maybeSingle()
+      if (error && !['42P01', 'PGRST205'].includes(error.code ?? '')) throw error
+      return data as { status: 'active' | 'pending' | 'expired'; plan_name: string; expires_at: string | null } | null
+    },
+    enabled: Boolean(artist.data),
+    retry: false,
+  })
 
-  if (auth.loading || artist.isLoading) return <LoadingState />
+  if (auth.loading) return <LoadingState label="Checking artist access..." />
   if (!auth.user) return <Navigate to="/auth" replace />
   if (!auth.isArtist) return <Navigate to="/" replace />
-  const submit = (event: FormEvent) => { event.preventDefault(); if (!publish.isPending) publish.mutate() }
-  const chooseAlbumTracks = (files: FileList | null) => setAlbumTracks(Array.from(files ?? []).map((file) => ({ id: crypto.randomUUID(), file, title: titleFromFile(file.name) })))
+  if (artist.isLoading) return <LoadingState label="Loading upload tools..." />
+  if (artist.error) return <ErrorState error={artist.error} retry={() => void artist.refetch()} />
+  if (!artist.data) return <ErrorState error={new Error('Your artist profile is not ready yet.')} />
 
-  return <div className="upload-page"><div className="page-heading"><div><span className="eyebrow"><UploadCloud />Artist upload</span><h1>Schedule a release</h1><p>Music stays private until its release date and time.</p></div></div><div className="segmented release-switch"><button type="button" className={mode === 'single' ? 'active' : ''} onClick={() => setMode('single')}>Single</button><button type="button" className={mode === 'album' ? 'active' : ''} onClick={() => setMode('album')}>Album / EP</button></div><form className="upload-form" onSubmit={submit}>
-    <label className="cover-picker">{coverPreview ? <img src={coverPreview} alt="Selected cover preview" /> : <span><ImagePlus />Choose square cover art<small>JPG, PNG or WebP · maximum 5MB</small></span>}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setCover(event.target.files?.[0] ?? null)} /></label>
-    <div className="form-grid"><label className="wide">{mode === 'single' ? 'Song title' : 'Album title'}<input value={title} onChange={(event) => setTitle(event.target.value)} required /></label>{mode === 'album' && <label>Release type<select value={releaseType} onChange={(event) => setReleaseType(event.target.value as 'album' | 'ep')}><option value="album">Album</option><option value="ep">EP</option></select></label>}<label>Genre<select value={genre} onChange={(event) => setGenre(event.target.value)}>{genres.map((value) => <option key={value}>{value}</option>)}</select></label><label>Mood<select value={mood} onChange={(event) => setMood(event.target.value)}><option value="">No mood</option>{moods.map((value) => <option key={value}>{value}</option>)}</select></label><label className="wide"><span className="label-with-icon"><CalendarClock />Release date and time</span><input type="datetime-local" value={releaseAt} onChange={(event) => setReleaseAt(event.target.value)} required /></label>{mode === 'single' ? <label className="file-picker wide"><Music2 />{audio ? audio.name : 'Choose audio file'}<small>MP3, WAV, M4A, AAC, OGG or WebM · maximum 60MB</small><input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm" onChange={(event) => setAudio(event.target.files?.[0] ?? null)} /></label> : <><label className="file-picker wide"><Music2 />{albumTracks.length ? `${albumTracks.length} tracks selected` : 'Choose album audio files'}<small>Select files in track order. You can correct every title below.</small><input type="file" multiple accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm" onChange={(event) => chooseAlbumTracks(event.target.files)} /></label><div className="album-track-editor wide">{albumTracks.map((track, index) => <div key={track.id}><span>{index + 1}</span><label>Track title<input value={track.title} onChange={(event) => setAlbumTracks((items) => items.map((item) => item.id === track.id ? { ...item, title: event.target.value } : item))} /></label><small>{track.file.name}</small><button type="button" className="icon-button" onClick={() => setAlbumTracks((items) => items.filter((item) => item.id !== track.id))} aria-label={`Remove ${track.title}`}><Trash2 /></button></div>)}</div></>}<label className="check-label wide"><input type="checkbox" checked={explicit} onChange={(event) => setExplicit(event.target.checked)} />Contains explicit content</label>{progress && <p className="form-message success wide" role="status">{progress}</p>}{publish.error && <p className="form-message error wide" role="alert">{publish.error.message}</p>}<button className="button primary" disabled={publish.isPending}><UploadCloud />{publish.isPending ? 'Uploading...' : 'Schedule release'}</button></div>
-  </form></div>
+  const choose = (next: UploadKind | null) => { setKind(next); setParams(next ? { type: next } : {}) }
+  if (kind === 'single') return <main className="upload-page"><SingleUploadFlow artist={artist.data} onExit={() => choose(null)} /></main>
+  if (kind === 'album') return <main className="upload-page"><AlbumUploadFlow artist={artist.data} onExit={() => choose(null)} /></main>
+  return <UploadChooser artist={artist.data} subscription={subscription.data} subscriptionLoading={subscription.isLoading} onChoose={choose} />
 }
 
-function validateCover(file: File) {
-  const extension = fileExtension(file.name, '')
-  if (!(file.type.startsWith('image/') || ['jpg','jpeg','png','webp'].includes(extension)) || file.size > 5 * 1024 * 1024) throw new Error('Use JPG, PNG, or WebP cover art smaller than 5MB.')
-}
-
-function validateAudio(file: File) {
-  const extension = fileExtension(file.name, '')
-  if (!(file.type.startsWith('audio/') || ['mp3','wav','m4a','aac','ogg','webm'].includes(extension)) || file.size > 60 * 1024 * 1024) throw new Error(`${file.name} is not a supported audio file smaller than 60MB.`)
-}
-
-function fileExtension(name: string, fallback: string) { return name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || fallback }
-function titleFromFile(name: string) { return name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim() }
-
-function readAudioDuration(file: File): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const audio = document.createElement('audio')
-    const url = URL.createObjectURL(file)
-    audio.preload = 'metadata'
-    audio.onloadedmetadata = () => { const duration = audio.duration; URL.revokeObjectURL(url); if (Number.isFinite(duration)) resolve(duration); else reject(new Error(`Could not read the duration of ${file.name}.`)) }
-    audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`Could not read ${file.name}.`)) }
-    audio.src = url
+function UploadChooser({ artist, subscription, subscriptionLoading, onChoose }: {
+  artist: ArtistIdentity
+  subscription?: { status: 'active' | 'pending' | 'expired'; plan_name: string; expires_at: string | null } | null
+  subscriptionLoading: boolean
+  onChoose: (kind: UploadKind) => void
+}) {
+  const drafts = useQuery({
+    queryKey: ['upload-drafts', artist.id],
+    queryFn: async () => {
+      const db = requireSupabase()
+      const [trackResult, albumResult] = await Promise.all([
+        db.from('tracks').select('id,title,slug,cover_path,created_at,updated_at').eq('artist_id', artist.id).eq('release_status', 'draft').order('updated_at', { ascending: false }),
+        db.from('albums').select('id,title,slug,cover_path,release_type,created_at,updated_at').eq('artist_id', artist.id).eq('release_status', 'draft').order('updated_at', { ascending: false }),
+      ])
+      if (trackResult.error) throw trackResult.error
+      if (albumResult.error) throw albumResult.error
+      return [...(trackResult.data ?? []).map((item) => ({ ...item, kind: 'single' as const })), ...(albumResult.data ?? []).map((item) => ({ ...item, kind: 'album' as const }))].sort((a, b) => new Date(b.updated_at ?? b.created_at).getTime() - new Date(a.updated_at ?? a.created_at).getTime()) as DraftItem[]
+    },
   })
+  const blocked = !subscriptionLoading && Boolean(subscription && subscription.status !== 'active')
+  return <main className="upload-page upload-chooser">
+    <header className="page-heading"><div><p className="eyebrow">Artist studio</p><h1>Upload to SHY</h1><p>Choose a release type and build it one clear step at a time.</p></div></header>
+    {blocked && <aside className="subscription-block" role="status"><Clock3 /><div><strong>Uploads are currently unavailable</strong><p>Your subscription is {subscription?.status}. You cannot upload until it is active.</p></div><Link className="button secondary" to={`/artists/${artist.slug}`}>Check Subscription Status</Link></aside>}
+    <div className="upload-choice-grid">
+      <article className="upload-choice-card"><span><Music2 /></span><h2>Upload a Single Track</h2><p>Share one song with the world</p><button className="button primary" disabled={blocked || subscriptionLoading} onClick={() => onChoose('single')}>Get Started <ArrowRight /></button><small>MP3, WAV, FLAC, AAC · Up to 100MB per file</small></article>
+      <article className="upload-choice-card"><span><Album /></span><h2>Upload an Album or EP</h2><p>Release a full project with multiple tracks</p><button className="button primary" disabled={blocked || subscriptionLoading} onClick={() => onChoose('album')}>Get Started <ArrowRight /></button><small>Up to 30 tracks per project</small></article>
+    </div>
+    <section className="drafts-section"><div className="section-heading"><div><p className="eyebrow">Private workspace</p><h2>My Drafts</h2></div></div>{drafts.isLoading ? <LoadingState label="Loading drafts..." /> : drafts.error ? <ErrorState error={drafts.error} retry={() => void drafts.refetch()} /> : drafts.data?.length ? <div className="management-list">{drafts.data.map((draft) => <article className="management-row" key={`${draft.kind}-${draft.id}`}><Cover src={publicStorageUrl('covers', draft.cover_path)} alt={draft.title} /><div><strong>{draft.title}</strong><span><FileAudio /> {draft.kind === 'single' ? 'Single track' : draft.release_type ?? 'Album'} · Edited {formatReleaseDate(draft.updated_at ?? draft.created_at)}</span></div><Link className="button secondary" to="/dashboard">Continue</Link></article>)}</div> : <EmptyState title="No drafts yet" text="Saved tracks and albums will stay private here." />}</section>
+  </main>
 }

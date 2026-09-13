@@ -16,4 +16,10 @@ describe('radio stations', () => {
     expect(result.map((item) => item.id)).toEqual(['2', '1'])
     expect(tracks.map((item) => item.id)).toEqual(['1', '2'])
   })
+
+  it('matches array metadata', () => {
+    const item = { ...track('3', 'Pop', 'Happy'), genres: ['Pop', 'Soul'], moods: ['Happy', 'Uplifting'] }
+    expect(tracksForStation([item], { kind: 'genre', value: 'soul' })).toEqual([item])
+    expect(tracksForStation([item], { kind: 'mood', value: 'uplifting' })).toEqual([item])
+  })
 })

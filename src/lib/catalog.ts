@@ -1,5 +1,6 @@
 import type { Album, Artist, Track } from '../types'
 import { publicStorageUrl, requireSupabase } from './supabase'
+import { normalizedMetadata } from './taxonomy'
 
 function published(query: any) {
   return query.eq('release_status', 'published').lte('release_at', new Date().toISOString())
@@ -39,6 +40,23 @@ export async function listFreshTracks(limit = 20): Promise<Track[]> {
   return hydrateTracks((data ?? []) as Track[])
 }
 
+export async function listRankedTracks(metric: 'plays' | 'listeners', days = 7, limit = 20): Promise<Track[]> {
+  const db = requireSupabase()
+  const { data: ranking, error: rankingError } = await db.rpc('get_track_rankings', { p_days: days, p_limit: limit, p_metric: metric })
+  if (rankingError) throw rankingError
+  const rows = (ranking ?? []) as Array<{ track_id: string; play_count: number; unique_listeners: number }>
+  if (!rows.length) return []
+  const { data, error } = await db.from('tracks')
+    .select('*, artist:artists(display_name,slug,avatar_url,verified,country,motivation_phone,motivation_count), album:albums(title,slug,cover_path)')
+    .in('id', rows.map((row) => row.track_id))
+  if (error) throw error
+  const byId = new Map(hydrateTracks((data ?? []) as Track[]).map((track) => [track.id, track]))
+  return rows.map((row) => {
+    const track = byId.get(row.track_id)
+    return track ? { ...track, plays_count: Number(row.play_count) } : null
+  }).filter((track): track is Track => Boolean(track))
+}
+
 export async function listPublishedAlbums(limit = 30): Promise<Album[]> {
   const query = requireSupabase()
     .from('albums')
@@ -50,29 +68,73 @@ export async function listPublishedAlbums(limit = 30): Promise<Album[]> {
   return (data ?? []).map((row: any) => ({
     ...row,
     cover_url: publicStorageUrl('covers', row.cover_path),
+    genres: normalizedMetadata(row.genres),
+    moods: normalizedMetadata(row.moods),
     track_count: row.tracks?.length ?? 0,
     stream_count: (row.tracks ?? []).reduce((sum: number, track: { plays_count?: number }) => sum + Number(track.plays_count ?? 0), 0),
   })) as Album[]
+}
+
+export async function listRankedAlbums(days: number, limit = 4): Promise<Album[]> {
+  const db = requireSupabase()
+  const { data: ranking, error: rankingError } = await db.rpc('get_album_rankings', { p_days: days, p_limit: limit })
+  if (rankingError) throw rankingError
+  const rows = (ranking ?? []) as Array<{ album_id: string; play_count: number }>
+  if (!rows.length) return []
+  const { data, error } = await db.from('albums')
+    .select('*, artist:artists(display_name,slug,avatar_url,verified), tracks(id)')
+    .in('id', rows.map((row) => row.album_id))
+  if (error) throw error
+  const byId = new Map((data ?? []).map((row: any) => [row.id, {
+    ...row,
+    cover_url: publicStorageUrl('covers', row.cover_path),
+    genres: normalizedMetadata(row.genres),
+    moods: normalizedMetadata(row.moods),
+    track_count: row.tracks?.length ?? 0,
+  } as Album]))
+  return rows.reduce<Album[]>((items, row) => {
+    const album = byId.get(row.album_id)
+    if (album) items.push({ ...album, stream_count: Number(row.play_count) })
+    return items
+  }, [])
+}
+
+export interface FanOfWeek {
+  user_id: string
+  total_plays: number
+  profile: { display_name: string; avatar_url: string | null } | null
+  artist: Pick<Artist, 'display_name' | 'slug' | 'verified'> | null
+  track: Track | null
+}
+
+export async function getFanOfTheWeek(): Promise<FanOfWeek | null> {
+  const { data, error } = await requireSupabase().from('fan_of_the_week')
+    .select('user_id,total_plays,profile:profiles(display_name,avatar_url),artist:artists(display_name,slug,verified),track:tracks(*,artist:artists(display_name,slug,avatar_url,verified,motivation_phone,motivation_count),album:albums(title,slug,cover_path))')
+    .order('week_start', { ascending: false }).limit(1).maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  const row = data as unknown as Omit<FanOfWeek, 'track'> & { track: Track | null }
+  return { ...row, total_plays: Number(row.total_plays), track: row.track ? hydrateTracks([row.track])[0] : null }
 }
 
 export async function getAlbum(slug: string): Promise<{ album: Album; tracks: Track[] }> {
   const db = requireSupabase()
   const { data: album, error } = await db
     .from('albums')
-    .select('*, artist:artists(display_name,slug,avatar_url,verified)')
+    .select('*, artist:artists(display_name,slug,avatar_url,verified,motivation_phone,motivation_count)')
     .eq('slug', slug)
     .single()
   if (error) throw error
   const { data: tracks, error: tracksError } = await db
     .from('tracks')
-    .select('*, artist:artists(display_name,slug,avatar_url,verified), album:albums(title,slug,cover_path)')
+    .select('*, artist:artists(display_name,slug,avatar_url,verified,motivation_phone,motivation_count), album:albums(title,slug,cover_path)')
     .eq('album_id', album.id)
     .eq('release_status', 'published')
     .lte('release_at', new Date().toISOString())
     .order('track_number')
   if (tracksError) throw tracksError
   return {
-    album: { ...album, cover_url: publicStorageUrl('covers', album.cover_path) } as Album,
+    album: { ...album, cover_url: publicStorageUrl('covers', album.cover_path), genres: normalizedMetadata(album.genres), moods: normalizedMetadata(album.moods) } as Album,
     tracks: hydrateTracks((tracks ?? []) as Track[]),
   }
 }
@@ -80,7 +142,7 @@ export async function getAlbum(slug: string): Promise<{ album: Album; tracks: Tr
 export async function getTrack(slug: string): Promise<Track> {
   const { data, error } = await requireSupabase()
     .from('tracks')
-    .select('*, artist:artists(display_name,slug,avatar_url,verified), album:albums(title,slug,cover_path)')
+    .select('*, artist:artists(display_name,slug,avatar_url,verified,motivation_phone,motivation_count), album:albums(title,slug,cover_path)')
     .eq('slug', slug)
     .single()
   if (error) throw error
@@ -99,7 +161,7 @@ export async function listArtistCatalog(artistId: string, includePrivate = false
   if (albumsResult.error) throw albumsResult.error
   if (tracksResult.error) throw tracksResult.error
   return {
-    albums: (albumsResult.data ?? []).map((row: any) => ({ ...row, cover_url: publicStorageUrl('covers', row.cover_path), track_count: row.tracks?.[0]?.count ?? 0 })) as Album[],
+    albums: (albumsResult.data ?? []).map((row: any) => ({ ...row, cover_url: publicStorageUrl('covers', row.cover_path), genres: normalizedMetadata(row.genres), moods: normalizedMetadata(row.moods), track_count: row.tracks?.[0]?.count ?? 0 })) as Album[],
     tracks: hydrateTracks((tracksResult.data ?? []) as Track[]),
   }
 }
@@ -133,6 +195,8 @@ export async function getDownloadUrl(trackId: string, fileName?: string): Promis
 function hydrateTracks(rows: Track[]): Track[] {
   return rows.map((row) => ({
     ...row,
+    genres: normalizedMetadata(row.genres, row.genre),
+    moods: normalizedMetadata(row.moods, row.mood),
     cover_url: publicStorageUrl('covers', row.cover_path ?? row.album?.cover_path),
   }))
 }

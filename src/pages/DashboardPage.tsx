@@ -87,7 +87,8 @@ function TrackEditor({ track }: { track: Track }) {
     const releaseAt = form.release_at ? new Date(form.release_at) : null
     if (form.release_status === 'scheduled' && (!releaseAt || releaseAt <= new Date())) throw new Error('A scheduled song needs a future date and time.')
     if (form.release_status === 'published' && !releaseAt) throw new Error('A published song needs a release date.')
-    const { error } = await requireSupabase().from('tracks').update({ title, release_status: form.release_status, release_at: releaseAt?.toISOString() ?? null, downloadable: form.downloadable }).eq('id', track.id)
+    const releaseIso = releaseAt?.toISOString() ?? null
+    const { error } = await requireSupabase().from('tracks').update({ title, release_status: form.release_status, release_at: releaseIso, scheduled_at: form.release_status === 'scheduled' ? releaseIso : null, downloadable: form.downloadable }).eq('id', track.id)
     if (error) throw error
   }, onSuccess: async () => { await client.invalidateQueries({ queryKey: ['my-catalog'] }); setEditing(false) } })
   if (!editing) return <ManagementRow cover={track.cover_url} title={track.title} meta={`${track.release_status} · ${formatCount(track.plays_count)} streams · ${track.downloadable ? 'download enabled' : 'stream only'}`} action={<div className="row-buttons"><Link className="button secondary" to={`/tracks/${track.slug}`}>View</Link><button className="button secondary" onClick={() => setEditing(true)}>Edit</button></div>} />
@@ -105,8 +106,9 @@ function AlbumEditor({ album }: { album: Album }) {
     if (form.release_status === 'scheduled' && (!releaseAt || releaseAt <= new Date())) throw new Error('A scheduled album needs a future date and time.')
     if (form.release_status === 'published' && !releaseAt) throw new Error('A published album needs a release date.')
     const db = requireSupabase()
-    const patch = { title, release_status: form.release_status, release_at: releaseAt?.toISOString() ?? null }
-    const [albumResult, tracksResult] = await Promise.all([db.from('albums').update(patch).eq('id', album.id), db.from('tracks').update({ release_status: form.release_status, release_at: patch.release_at }).eq('album_id', album.id)])
+    const releaseIso = releaseAt?.toISOString() ?? null
+    const patch = { title, release_status: form.release_status, release_at: releaseIso, scheduled_at: form.release_status === 'scheduled' ? releaseIso : null }
+    const [albumResult, tracksResult] = await Promise.all([db.from('albums').update(patch).eq('id', album.id), db.from('tracks').update({ release_status: form.release_status, release_at: patch.release_at, scheduled_at: patch.scheduled_at }).eq('album_id', album.id)])
     if (albumResult.error) throw albumResult.error
     if (tracksResult.error) throw tracksResult.error
   }, onSuccess: async () => { await client.invalidateQueries({ queryKey: ['my-catalog'] }); setEditing(false) } })
@@ -131,7 +133,8 @@ function ScheduledEditor({ item }: { item: (Track | Album) & { kind: 'track' | '
       if (!title.trim()) throw new Error('Title is required.')
       if (!releaseAt || new Date(releaseAt) <= new Date()) throw new Error('Choose a future date and time.')
       const table = item.kind === 'track' ? 'tracks' : 'albums'
-      const { error } = await requireSupabase().from(table).update({ title: title.trim(), release_at: new Date(releaseAt).toISOString() }).eq('id', item.id)
+      const releaseIso = new Date(releaseAt).toISOString()
+      const { error } = await requireSupabase().from(table).update({ title: title.trim(), release_at: releaseIso, scheduled_at: releaseIso }).eq('id', item.id)
       if (error) throw error
     },
     onSuccess: () => client.invalidateQueries({ queryKey: ['my-catalog'] }),
