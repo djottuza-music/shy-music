@@ -2,7 +2,7 @@ import { App as CapacitorApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import { usePlayer } from '../contexts/PlayerContext'
+import { usePlayer } from '../contexts/usePlayer'
 import { useToast } from '../contexts/ToastContext'
 
 const roots = new Set(['/', '/artists', '/library', '/discover', '/fans'])

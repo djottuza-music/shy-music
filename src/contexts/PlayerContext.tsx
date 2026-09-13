@@ -1,33 +1,7 @@
-/* oxlint-disable react/only-export-components */
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Track } from '../types'
 import { getTrackStreamUrl, recordQualifiedPlay } from '../lib/catalog'
-
-interface PlayerContextValue {
-  current: Track | null
-  queue: Track[]
-  isPlaying: boolean
-  currentTime: number
-  duration: number
-  volume: number
-  shuffle: boolean
-  repeat: boolean
-  expanded: boolean
-  error: string | null
-  play: (track: Track, queue?: Track[]) => Promise<void>
-  toggle: () => Promise<void>
-  next: () => Promise<void>
-  previous: () => Promise<void>
-  seek: (seconds: number) => void
-  setVolume: (value: number) => void
-  setShuffle: (value: boolean) => void
-  setRepeat: (value: boolean) => void
-  setExpanded: (value: boolean) => void
-  addToQueue: (track: Track) => void
-  moveQueueItem: (fromIndex: number, toIndex: number) => void
-}
-
-const PlayerContext = createContext<PlayerContextValue | null>(null)
+import { PlayerContext, type PlayerContextValue } from './playerContextValue'
 const PLAYER_KEY = 'shy-player-state-v1'
 
 interface PlayerSnapshot {
@@ -284,11 +258,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     play, toggle, next, previous, seek, setVolume, setShuffle, setRepeat, setExpanded, addToQueue, moveQueueItem,
   }), [addToQueue, current, currentTime, duration, error, expanded, isPlaying, moveQueueItem, next, play, previous, queue, repeat, seek, setVolume, shuffle, toggle, volumeState])
 
-  return <PlayerContext.Provider value={value}>{children}<audio ref={audioRef} preload="auto" playsInline hidden /><audio ref={preloadRef} preload="auto" playsInline hidden /></PlayerContext.Provider>
-}
-
-export function usePlayer() {
-  const value = useContext(PlayerContext)
-  if (!value) throw new Error('usePlayer must be used inside PlayerProvider')
-  return value
+  return <PlayerContext.Provider value={value}>
+    {children}
+    <audio ref={audioRef} preload="auto" playsInline hidden />
+    <audio ref={preloadRef} preload="auto" playsInline hidden />
+  </PlayerContext.Provider>
 }

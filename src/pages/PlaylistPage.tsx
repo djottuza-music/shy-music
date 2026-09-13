@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { EmptyState, ErrorState, LoadingState } from '../components/States'
 import { TrackRow } from '../components/TrackRow'
 import { useAuth } from '../contexts/AuthContext'
-import { usePlayer } from '../contexts/PlayerContext'
+import { usePlayer } from '../contexts/usePlayer'
 import { publicStorageUrl, requireSupabase } from '../lib/supabase'
 import type { Playlist, Track } from '../types'
 

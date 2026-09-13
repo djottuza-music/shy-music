@@ -1,6 +1,6 @@
 import { Pause, Play } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { usePlayer } from '../contexts/PlayerContext'
+import { usePlayer } from '../contexts/usePlayer'
 import { formatCount } from '../lib/format'
 import type { Album, Artist, Track } from '../types'
 import { Cover } from './States'

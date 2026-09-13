@@ -11,7 +11,7 @@ import { Cover, EmptyState, ErrorState, LoadingState } from '../components/State
 import { TrackRow } from '../components/TrackRow'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import { useAuth } from '../contexts/AuthContext'
-import { usePlayer } from '../contexts/PlayerContext'
+import { usePlayer } from '../contexts/usePlayer'
 import { useArtistFollow } from '../hooks/social'
 import { getArtist, listArtistCatalog } from '../lib/catalog'
 import { formatCount } from '../lib/format'

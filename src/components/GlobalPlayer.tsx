@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Download, Heart, ListMusic, Maximize2, Pause, Play, Repeat2, Share2, Shuffle, SkipBack, SkipForward, Volume1, Volume2, X } from 'lucide-react'
 import { useEffect, useState, type CSSProperties } from 'react'
-import { usePlayer } from '../contexts/PlayerContext'
+import { usePlayer } from '../contexts/usePlayer'
 import { useToast } from '../contexts/ToastContext'
 import { useTrackLike } from '../hooks/social'
 import { startTrackDownload } from '../lib/download'
