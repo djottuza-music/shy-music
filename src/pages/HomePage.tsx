@@ -17,11 +17,13 @@ export function HomePage() {
   if (tracks.isLoading || albums.isLoading || artists.isLoading) return <LoadingState />
   if (tracks.error) return <ErrorState error={tracks.error} retry={() => tracks.refetch()} />
   const trending = tracks.data ?? []
+  const albumOfTheWeek = [...(albums.data ?? [])].sort((left, right) => (right.stream_count ?? 0) - (left.stream_count ?? 0))[0]
 
   return <div className="home-page">
     <section className="home-intro"><div><span className="eyebrow"><Sparkles />Independent music, closer</span><h1>What should we play?</h1><p>Fresh music from artists who own their sound.</p></div></section>
     <Shelf title="Trending Now" action={<Link to="/discover">See all <ArrowRight /></Link>}>{trending.map((track) => <TrackCard key={track.id} track={track} queue={trending} />)}</Shelf>
     {(fresh.data?.length ?? 0) > 0 && <Shelf title="Fresh Drops">{fresh.data!.map((track) => <TrackCard key={track.id} track={track} queue={fresh.data!} />)}</Shelf>}
+    {albumOfTheWeek && <Shelf title="Album of the Week" action={<Link to={`/albums/${albumOfTheWeek.slug}`}>Open album <ArrowRight /></Link>}><AlbumCard album={albumOfTheWeek} /></Shelf>}
     {(albums.data?.length ?? 0) > 0 && <Shelf title="Albums to know">{albums.data!.map((album) => <AlbumCard key={album.id} album={album} />)}</Shelf>}
     {(artists.data?.length ?? 0) > 0 && <Shelf title="Rising Artists">{artists.data!.map((artist) => <ArtistCard key={artist.id} artist={artist} />)}</Shelf>}
     {trending.length === 0 && <EmptyState title="The stage is ready" text="Published music will appear here as soon as the first artist goes live." />}

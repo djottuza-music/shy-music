@@ -1,8 +1,9 @@
 /* oxlint-disable react/only-export-components */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import type { Profile, Role } from '../types'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { canUseAccountMode, readAccountMode, storeAccountMode, type AccountMode } from '../lib/accountMode'
 
 interface SignUpInput {
   email: string
@@ -17,9 +18,11 @@ interface AuthContextValue {
   profile: Profile | null
   loading: boolean
   configured: boolean
+  activeMode: AccountMode
   isArtist: boolean
   isAdmin: boolean
-  signIn: (email: string, password: string) => Promise<void>
+  signIn: (email: string, password: string, mode: AccountMode) => Promise<void>
+  setAccountMode: (mode: AccountMode) => void
   signUp: (input: SignUpInput) => Promise<{ needsVerification: boolean }>
   signOut: () => Promise<void>
   requestPasswordReset: (email: string) => Promise<void>
@@ -33,6 +36,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(isSupabaseConfigured)
+  const [activeMode, setActiveModeState] = useState<AccountMode>(readAccountMode)
+  const activeModeRef = useRef(activeMode)
+
+  const setAccountMode = useCallback((mode: AccountMode) => {
+    const roles = profile?.roles ?? []
+    if (!canUseAccountMode(roles, mode)) throw new Error('This account does not have artist access.')
+    activeModeRef.current = mode
+    setActiveModeState(mode)
+    storeAccountMode(mode)
+  }, [profile?.roles])
 
   const loadProfile = useCallback(async (userId: string) => {
     if (!supabase) return setProfile(null)
@@ -42,7 +55,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ])
     if (error) throw error
     if (!profileRow) return setProfile(null)
-    setProfile({ ...profileRow, roles: (roleRows ?? []).map((row) => row.role as Role) } as Profile)
+    const nextProfile = { ...profileRow, roles: (roleRows ?? []).map((row) => row.role as Role) } as Profile
+    setProfile(nextProfile)
+    if (!canUseAccountMode(nextProfile.roles, activeModeRef.current)) {
+      activeModeRef.current = 'listener'
+      setActiveModeState('listener')
+      storeAccountMode('listener')
+    }
+    return nextProfile
   }, [])
 
   const refreshProfile = useCallback(async () => {
@@ -72,11 +92,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loadProfile])
 
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string, mode: AccountMode) => {
     if (!supabase) throw new Error('SHY is not connected to Supabase yet.')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
-  }, [])
+    try {
+      const nextProfile = await loadProfile(data.user.id)
+      const roles = nextProfile?.roles ?? []
+      if (!canUseAccountMode(roles, mode)) {
+        await supabase.auth.signOut()
+        throw new Error('This account is registered as a listener. Choose Listener, or ask SHY support to enable artist access.')
+      }
+      activeModeRef.current = mode
+      setActiveModeState(mode)
+      storeAccountMode(mode)
+    } catch (caught) {
+      await supabase.auth.signOut()
+      throw caught
+    }
+  }, [loadProfile])
 
   const signUp = useCallback(async ({ email, password, displayName, accountType }: SignUpInput) => {
     if (!supabase) throw new Error('SHY is not connected to Supabase yet.')
@@ -87,6 +121,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options: { emailRedirectTo: redirectTo, data: { display_name: displayName, account_type: accountType } },
     })
     if (error) throw error
+    if (data.session) {
+      activeModeRef.current = accountType
+      setActiveModeState(accountType)
+      storeAccountMode(accountType)
+    }
     return { needsVerification: !data.session }
   }, [])
 
@@ -94,6 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+    activeModeRef.current = 'listener'
+    setActiveModeState('listener')
+    storeAccountMode('listener')
   }, [])
 
   const requestPasswordReset = useCallback(async (email: string) => {
@@ -116,15 +158,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     loading,
     configured: isSupabaseConfigured,
-    isArtist: roles.includes('artist') || roles.includes('admin'),
-    isAdmin: roles.includes('admin'),
+    activeMode,
+    isArtist: activeMode === 'artist' && (roles.includes('artist') || roles.includes('admin')),
+    isAdmin: activeMode === 'artist' && roles.includes('admin'),
     signIn,
+    setAccountMode,
     signUp,
     signOut,
     requestPasswordReset,
     updatePassword,
     refreshProfile,
-  }), [loading, profile, refreshProfile, requestPasswordReset, session, signIn, signOut, signUp, updatePassword, roles])
+  }), [activeMode, loading, profile, refreshProfile, requestPasswordReset, session, setAccountMode, signIn, signOut, signUp, updatePassword, roles])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

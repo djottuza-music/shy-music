@@ -20,7 +20,7 @@ export async function getArtist(slug: string): Promise<Artist> {
 export async function listPublishedTracks(limit = 50): Promise<Track[]> {
   const query = requireSupabase()
     .from('tracks')
-    .select('*, artist:artists(display_name,slug,avatar_url,verified), album:albums(title,slug,cover_path)')
+    .select('*, artist:artists(display_name,slug,avatar_url,verified,country), album:albums(title,slug,cover_path)')
     .order('plays_count', { ascending: false })
     .limit(limit)
   const { data, error } = await published(query)
@@ -31,7 +31,7 @@ export async function listPublishedTracks(limit = 50): Promise<Track[]> {
 export async function listFreshTracks(limit = 20): Promise<Track[]> {
   const query = requireSupabase()
     .from('tracks')
-    .select('*, artist:artists(display_name,slug,avatar_url,verified), album:albums(title,slug,cover_path)')
+    .select('*, artist:artists(display_name,slug,avatar_url,verified,country), album:albums(title,slug,cover_path)')
     .order('release_at', { ascending: false })
     .limit(limit)
   const { data, error } = await published(query)
@@ -42,7 +42,7 @@ export async function listFreshTracks(limit = 20): Promise<Track[]> {
 export async function listPublishedAlbums(limit = 30): Promise<Album[]> {
   const query = requireSupabase()
     .from('albums')
-    .select('*, artist:artists(display_name,slug,avatar_url,verified), tracks(count)')
+    .select('*, artist:artists(display_name,slug,avatar_url,verified), tracks(plays_count)')
     .order('release_at', { ascending: false })
     .limit(limit)
   const { data, error } = await published(query)
@@ -50,7 +50,8 @@ export async function listPublishedAlbums(limit = 30): Promise<Album[]> {
   return (data ?? []).map((row: any) => ({
     ...row,
     cover_url: publicStorageUrl('covers', row.cover_path),
-    track_count: row.tracks?.[0]?.count ?? 0,
+    track_count: row.tracks?.length ?? 0,
+    stream_count: (row.tracks ?? []).reduce((sum: number, track: { plays_count?: number }) => sum + Number(track.plays_count ?? 0), 0),
   })) as Album[]
 }
 

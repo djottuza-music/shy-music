@@ -1,4 +1,4 @@
-import { Compass, Headphones, Home, Library, LogOut, Menu, Mic2, Search, Shield, Upload, UserRound, X } from 'lucide-react'
+import { BarChart3, Compass, Headphones, Home, Library, LogOut, Menu, Mic2, Radio, Search, Shield, Upload, UserRound, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -10,6 +10,8 @@ const navItems = [
   { to: '/artists', label: 'Artists', icon: Mic2 },
   { to: '/library', label: 'Library', icon: Library },
   { to: '/discover', label: 'Discover', icon: Compass },
+  { to: '/charts', label: 'Charts', icon: BarChart3 },
+  { to: '/radio', label: 'Radio', icon: Radio },
 ]
 
 export function Layout() {
@@ -32,6 +34,12 @@ export function Layout() {
     navigate(query ? `/discover?q=${encodeURIComponent(query)}` : '/discover')
   }
 
+  const switchMode = (mode: 'listener' | 'artist') => {
+    auth.setAccountMode(mode)
+    setProfileOpen(false)
+    navigate(mode === 'artist' ? '/dashboard' : '/')
+  }
+
   return <div className="app-shell">
     <header className={`topbar ${auth.isArtist ? 'artist-topbar' : ''}`}>
       <Link to="/" className="brand" aria-label="SHY home"><img className="brand-logo" src={`${import.meta.env.BASE_URL}assets/brand/shy-logo-192.png`} alt="" /><span>SHY<small>MUSIC</small></span></Link>
@@ -42,7 +50,7 @@ export function Layout() {
         {auth.isArtist && <Link className="button primary compact-button" to="/upload"><Upload />Upload</Link>}
         {auth.isArtist && <Link className="button secondary compact-button" to="/dashboard"><Headphones />Dashboard</Link>}
         {auth.isAdmin && <Link className="button secondary compact-button" to="/admin"><Shield />Admin</Link>}
-        {auth.user ? <div className="profile-menu"><button className="avatar-button" onClick={() => setProfileOpen((value) => !value)} aria-expanded={profileOpen} aria-label="Open account menu">{initial.toUpperCase()}</button>{profileOpen && <div className="profile-popover"><strong>{auth.profile?.display_name ?? 'SHY member'}</strong><span>{auth.user.email}</span><Link to="/account" onClick={() => setProfileOpen(false)}><UserRound />Account settings</Link><button onClick={logout}><LogOut />Sign out</button></div>}</div> : <Link className="button primary compact-button" to="/auth"><UserRound />Sign in</Link>}
+        {auth.user ? <div className="profile-menu"><button className="avatar-button" onClick={() => setProfileOpen((value) => !value)} aria-expanded={profileOpen} aria-label="Open account menu">{initial.toUpperCase()}</button>{profileOpen && <div className="profile-popover"><strong>{auth.profile?.display_name ?? 'SHY member'}</strong><span>{auth.user.email}</span>{(auth.profile?.roles.includes('artist') || auth.profile?.roles.includes('admin')) && <div className="account-mode-switch" aria-label="SHY experience"><button className={auth.activeMode === 'listener' ? 'active' : ''} onClick={() => switchMode('listener')}>Listener view</button><button className={auth.activeMode === 'artist' ? 'active' : ''} onClick={() => switchMode('artist')}>Artist view</button></div>}<Link to="/account" onClick={() => setProfileOpen(false)}><UserRound />Account settings</Link><button onClick={logout}><LogOut />Sign out</button></div>}</div> : <Link className="button primary compact-button" to="/auth"><UserRound />Sign in</Link>}
         <button className="icon-button mobile-menu-button" onClick={() => setMenuOpen((value) => !value)} aria-label="Toggle navigation">{menuOpen ? <X /> : <Menu />}</button>
       </div>
     </header>

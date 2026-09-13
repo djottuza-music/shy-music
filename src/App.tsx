@@ -8,10 +8,13 @@ const AlbumPage = lazy(() => import('./pages/AlbumPage').then((module) => ({ def
 const ArtistPage = lazy(() => import('./pages/ArtistPage').then((module) => ({ default: module.ArtistPage })))
 const ArtistsPage = lazy(() => import('./pages/ArtistsPage').then((module) => ({ default: module.ArtistsPage })))
 const AuthPage = lazy(() => import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })))
+const ChartsPage = lazy(() => import('./pages/ChartsPage').then((module) => ({ default: module.ChartsPage })))
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
 const DiscoverPage = lazy(() => import('./pages/DiscoverPage').then((module) => ({ default: module.DiscoverPage })))
 const HomePage = lazy(() => import('./pages/HomePage').then((module) => ({ default: module.HomePage })))
 const LibraryPage = lazy(() => import('./pages/LibraryPage').then((module) => ({ default: module.LibraryPage })))
+const PlaylistPage = lazy(() => import('./pages/PlaylistPage').then((module) => ({ default: module.PlaylistPage })))
+const RadioPage = lazy(() => import('./pages/RadioPage').then((module) => ({ default: module.RadioPage })))
 const TrackPage = lazy(() => import('./pages/TrackPage').then((module) => ({ default: module.TrackPage })))
 const UploadPage = lazy(() => import('./pages/UploadPage').then((module) => ({ default: module.UploadPage })))
 const simplePages = () => import('./pages/SimplePages')
@@ -29,7 +32,10 @@ export default function App() {
       <Route path="albums/:slug" element={<AlbumPage />} />
       <Route path="tracks/:slug" element={<TrackPage />} />
       <Route path="library" element={<LibraryPage />} />
+      <Route path="playlists/:id" element={<PlaylistPage />} />
       <Route path="discover" element={<DiscoverPage />} />
+      <Route path="charts" element={<ChartsPage />} />
+      <Route path="radio" element={<RadioPage />} />
       <Route path="auth" element={<AuthPage />} />
       <Route path="dashboard" element={<DashboardPage />} />
       <Route path="upload" element={<UploadPage />} />

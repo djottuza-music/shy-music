@@ -36,8 +36,9 @@ export interface Album {
   release_status: ReleaseStatus
   release_at: string | null
   created_at: string
-  artist?: Pick<Artist, 'display_name' | 'slug' | 'avatar_url' | 'verified'>
+  artist?: Pick<Artist, 'display_name' | 'slug' | 'avatar_url' | 'verified'> & Partial<Pick<Artist, 'country'>>
   track_count?: number
+  stream_count?: number
 }
 
 export interface Track {
@@ -60,7 +61,7 @@ export interface Track {
   release_at: string | null
   plays_count: number
   created_at: string
-  artist?: Pick<Artist, 'display_name' | 'slug' | 'avatar_url' | 'verified'>
+  artist?: Pick<Artist, 'display_name' | 'slug' | 'avatar_url' | 'verified'> & Partial<Pick<Artist, 'country'>>
   album?: Pick<Album, 'title' | 'slug' | 'cover_path'> | null
   stream_url?: string
 }
