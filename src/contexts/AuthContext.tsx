@@ -24,6 +24,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string, mode: AccountMode) => Promise<void>
   setAccountMode: (mode: AccountMode) => void
   signUp: (input: SignUpInput) => Promise<{ needsVerification: boolean }>
+  resendSignUpConfirmation: (email: string) => Promise<void>
   signOut: () => Promise<void>
   requestPasswordReset: (email: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>
@@ -98,10 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
     try {
       const nextProfile = await loadProfile(data.user.id)
-      const roles = nextProfile?.roles ?? []
+      let roles = nextProfile?.roles ?? []
       if (!canUseAccountMode(roles, mode)) {
-        await supabase.auth.signOut()
-        throw new Error('This account is registered as a listener. Choose Listener, or ask SHY support to enable artist access.')
+        const { error: enrollmentError } = await supabase.rpc('enroll_as_artist')
+        if (enrollmentError) throw new Error('Artist access could not be enabled. Please try again or contact SHY support.')
+        roles = (await loadProfile(data.user.id))?.roles ?? []
+        if (!canUseAccountMode(roles, mode)) throw new Error('Artist access could not be verified. Please contact SHY support.')
       }
       activeModeRef.current = mode
       setActiveModeState(mode)
@@ -111,6 +114,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw caught
     }
   }, [loadProfile])
+
+  const resendSignUpConfirmation = useCallback(async (email: string) => {
+    if (!supabase) throw new Error('SHY is not connected to Supabase yet.')
+    const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}auth`
+    const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: redirectTo } })
+    if (error) throw error
+  }, [])
 
   const signUp = useCallback(async ({ email, password, displayName, accountType }: SignUpInput) => {
     if (!supabase) throw new Error('SHY is not connected to Supabase yet.')
@@ -164,11 +174,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     setAccountMode,
     signUp,
+    resendSignUpConfirmation,
     signOut,
     requestPasswordReset,
     updatePassword,
     refreshProfile,
-  }), [activeMode, loading, profile, refreshProfile, requestPasswordReset, session, setAccountMode, signIn, signOut, signUp, updatePassword, roles])
+  }), [activeMode, loading, profile, refreshProfile, requestPasswordReset, resendSignUpConfirmation, session, setAccountMode, signIn, signOut, signUp, updatePassword, roles])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -194,6 +194,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--purple); box-sha
 .form-message { margin: 0; font-size: 13px; }
 .form-message.success { color: var(--success); }
 .field-help { display: block; margin-top: 8px; color: var(--muted); line-height: 1.45; }
+.auth-recovery-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); }
+.auth-recovery-actions .button { min-height: 38px; }
 .chart-tabs, .library-tabs { display: flex; gap: 5px; padding: 5px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
 .chart-tabs button, .library-tabs button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 15px; border: 0; border-radius: 5px; color: var(--muted); background: transparent; text-transform: capitalize; cursor: pointer; }
 .chart-tabs button:hover, .chart-tabs button.active, .library-tabs button:hover, .library-tabs button.active { color: var(--text); background: var(--surface-2); }

@@ -22,6 +22,7 @@ export function AuthPage() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [signupPendingEmail, setSignupPendingEmail] = useState('')
 
   useEffect(() => {
     if (auth.user && !auth.loading && !busy && mode !== 'recovery') navigate(auth.activeMode === 'artist' ? '/dashboard' : '/', { replace: true })
@@ -45,7 +46,8 @@ export function AuthPage() {
         if (displayName.trim().length < 2) throw new Error('Enter your name or artist name.')
         if (password.length < 8) throw new Error('Use at least 8 characters for your password.')
         const result = await auth.signUp({ email: email.trim(), password, displayName: displayName.trim(), accountType })
-        setMessage(result.needsVerification ? 'Check your email to verify your SHY account.' : 'Your SHY account is ready.')
+        setSignupPendingEmail(result.needsVerification ? email.trim() : '')
+        setMessage(result.needsVerification ? 'Signup received. New accounts get a confirmation email. If none arrives, this email may already have a SHY account.' : 'Your SHY account is ready.')
       } else {
         await auth.signIn(email.trim(), password, signInMode)
         if (remember) localStorage.setItem('shy-remembered-email', email.trim())
@@ -59,9 +61,29 @@ export function AuthPage() {
     }
   }
 
+  const resendConfirmation = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      await auth.resendSignUpConfirmation(signupPendingEmail)
+      setMessage('Confirmation email requested. Check your inbox and spam folder. Already confirmed? Sign in or reset your password.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'The confirmation email could not be resent.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const changeMode = (nextMode: Mode) => {
+    setMode(nextMode)
+    setError('')
+    setMessage('')
+    setSignupPendingEmail('')
+  }
+
   return <div className="auth-page"><section className="auth-card">
     <div className="auth-brand"><img className="brand-logo auth-logo" src={`${import.meta.env.BASE_URL}assets/brand/shy-logo-192.png`} alt="SHY Music" /><div><strong>SHY MUSIC</strong><span>Closer to the music.</span></div></div>
-    {(mode === 'signin' || mode === 'signup') && <div className="segmented"><button className={mode === 'signin' ? 'active' : ''} onClick={() => { setMode('signin'); setError(''); setMessage('') }}>Sign in</button><button className={mode === 'signup' ? 'active' : ''} onClick={() => { setMode('signup'); setError(''); setMessage('') }}>Sign up</button></div>}
+    {(mode === 'signin' || mode === 'signup') && <div className="segmented"><button className={mode === 'signin' ? 'active' : ''} onClick={() => changeMode('signin')}>Sign in</button><button className={mode === 'signup' ? 'active' : ''} onClick={() => changeMode('signup')}>Sign up</button></div>}
     <div className="auth-heading"><h1>{mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Join SHY' : mode === 'forgot' ? 'Reset your password' : 'Choose a new password'}</h1><p>{mode === 'signup' ? 'Choose how you want to use SHY.' : mode === 'recovery' ? 'Use a strong password you do not use elsewhere.' : 'Use the email connected to your account.'}</p></div>
     <form onSubmit={submit} className="form-stack">
       {mode === 'signin' && <fieldset><legend>Continue to SHY as</legend><div className="segmented"><button type="button" className={signInMode === 'listener' ? 'active' : ''} onClick={() => setSignInMode('listener')}>Listener</button><button type="button" className={signInMode === 'artist' ? 'active' : ''} onClick={() => setSignInMode('artist')}>Artist / songwriter</button></div><small className="field-help">Artist access is checked against your SHY account.</small></fieldset>}
@@ -72,8 +94,9 @@ export function AuthPage() {
       {mode === 'signin' && <div className="form-split"><label className="check-label"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />Remember email</label><button type="button" className="text-button" onClick={() => setMode('forgot')}>Forgot password?</button></div>}
       {error && <p className="form-message error" role="alert">{error}</p>}
       {message && <p className="form-message success" role="status">{message}</p>}
+      {mode === 'signup' && signupPendingEmail && <div className="auth-recovery-actions"><button type="button" className="button secondary" onClick={() => void resendConfirmation()} disabled={busy}>Resend email</button><button type="button" className="text-button" onClick={() => changeMode('signin')}>Sign in instead</button><button type="button" className="text-button" onClick={() => changeMode('forgot')}>Reset password</button></div>}
       <button className="button primary full" disabled={busy}>{busy ? 'Please wait...' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : mode === 'forgot' ? 'Send reset email' : 'Update password'}</button>
-      {mode === 'forgot' && <button type="button" className="text-button" onClick={() => setMode('signin')}>Back to sign in</button>}
+      {mode === 'forgot' && <button type="button" className="text-button" onClick={() => changeMode('signin')}>Back to sign in</button>}
     </form>
   </section></div>
 }
