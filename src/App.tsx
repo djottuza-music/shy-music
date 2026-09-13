@@ -12,6 +12,7 @@ const ChartsPage = lazy(() => import('./pages/ChartsPage').then((module) => ({ d
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
 const DiscoverPage = lazy(() => import('./pages/DiscoverPage').then((module) => ({ default: module.DiscoverPage })))
 const HomePage = lazy(() => import('./pages/HomePage').then((module) => ({ default: module.HomePage })))
+const FansPage = lazy(() => import('./pages/FansPage').then((module) => ({ default: module.FansPage })))
 const LibraryPage = lazy(() => import('./pages/LibraryPage').then((module) => ({ default: module.LibraryPage })))
 const PlaylistPage = lazy(() => import('./pages/PlaylistPage').then((module) => ({ default: module.PlaylistPage })))
 const RadioPage = lazy(() => import('./pages/RadioPage').then((module) => ({ default: module.RadioPage })))
@@ -38,6 +39,7 @@ export default function App() {
       <Route path="playlists/:id" element={<PlaylistPage />} />
       <Route path="discover" element={<DiscoverPage />} />
       <Route path="charts" element={<ChartsPage />} />
+      <Route path="fans" element={<FansPage />} />
       <Route path="radio" element={<RadioPage />} />
       <Route path="auth" element={<AuthPage />} />
       <Route path="dashboard" element={<DashboardPage />} />

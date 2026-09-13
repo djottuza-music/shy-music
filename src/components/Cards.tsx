@@ -37,7 +37,7 @@ export function AlbumCard({ album }: { album: Album }) {
 
 export function ArtistCard({ artist }: { artist: Artist }) {
   return <Link className="artist-card" to={`/artists/${artist.slug}`}>
-    <Cover src={artist.avatar_url} alt={`${artist.display_name} profile photo`} className="artist-avatar" />
+    <span className="artist-avatar-glow"><span className="song-card-glow" aria-hidden="true" /><Cover src={artist.avatar_url} alt={`${artist.display_name} profile photo`} className="artist-avatar" /></span>
     <strong title={artist.display_name}>{artist.display_name}{artist.verified && <VerifiedBadge />}</strong>
     <span>{formatCount(artist.followers_count)} followers</span>
   </Link>

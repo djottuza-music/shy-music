@@ -47,7 +47,7 @@ export function NotificationsMenu() {
   useEffect(() => {
     if (!supabase || !auth.user) return
     const db = supabase
-    const channel = db.channel(`notifications:${auth.user.id}`)
+    const channel = db.channel(`notifications:${auth.user.id}:${crypto.randomUUID()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${auth.user.id}` }, () => {
         void client.invalidateQueries({ queryKey: ['notifications', auth.user?.id] })
       }).subscribe()

@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Camera, Download, Edit3, ExternalLink, Gift, Heart, Music2, Pause, Play, Save, Share2, TrendingUp, Upload, X } from 'lucide-react'
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { AlbumCard, TrackCard } from '../components/Cards'
 import { MetadataPicker } from '../components/MetadataChips'
 import { MotivateButton } from '../components/MotivateButton'
@@ -15,7 +15,7 @@ import { usePlayer } from '../contexts/PlayerContext'
 import { useArtistFollow } from '../hooks/social'
 import { getArtist, listArtistCatalog } from '../lib/catalog'
 import { formatCount } from '../lib/format'
-import { publicStorageUrl, requireSupabase } from '../lib/supabase'
+import { requireSupabase } from '../lib/supabase'
 import type { Album, Artist, ArtistSubscription, Track } from '../types'
 
 type Tab = 'overview' | 'songs' | 'albums' | 'about' | 'dashboard'
@@ -25,18 +25,21 @@ const socialFields = [
 
 export function ArtistPage() {
   const { slug = '' } = useParams()
+  const [searchParams] = useSearchParams()
   const auth = useAuth()
   const client = useQueryClient()
   const artist = useQuery({ queryKey: ['artist', slug], queryFn: () => getArtist(slug) })
   const owner = Boolean(auth.user && artist.data?.user_id === auth.user.id)
   const catalog = useQuery({ queryKey: ['artist-catalog', artist.data?.id, owner], queryFn: () => listArtistCatalog(artist.data!.id, owner), enabled: Boolean(artist.data?.id) })
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useState<Tab>(() => searchParams.get('tab') === 'dashboard' ? 'dashboard' : 'overview')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Partial<Artist>>({})
   const [avatar, setAvatar] = useState<File | null>(null)
   const [banner, setBanner] = useState<File | null>(null)
   const [privateDetails, setPrivateDetails] = useState({ mobile_phone: '', mobile_money_number: '', mobile_money_network: '' })
   const [message, setMessage] = useState('')
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const openedEditFromUrl = useRef(false)
   const player = usePlayer()
   const follow = useArtistFollow(artist.data?.id ?? '')
 
@@ -60,30 +63,42 @@ export function ArtistPage() {
         instagram_url: draft.instagram_url?.trim() || null, twitter_url: draft.twitter_url?.trim() || null, youtube_url: draft.youtube_url?.trim() || null,
         tiktok_url: draft.tiktok_url?.trim() || null, facebook_url: draft.facebook_url?.trim() || null, soundcloud_url: draft.soundcloud_url?.trim() || null, website_url: draft.website_url?.trim() || null,
       }
+      setUploadProgress(avatar || banner ? 15 : 0)
       if (avatar) {
-        const path = `${artist.data.id}/profile-${Date.now()}.${fileExtension(avatar)}`
-        const uploaded = await db.storage.from('avatars').upload(path, avatar, { upsert: false })
+        const path = `${artist.data.id}/avatar.${fileExtension(avatar)}`
+        const bucket = db.storage.from('artist-avatars')
+        const uploaded = await bucket.upload(path, avatar, { upsert: true, contentType: avatar.type || undefined })
         if (uploaded.error) throw uploaded.error
-        updates.avatar_url = publicStorageUrl('avatars', path)
+        updates.avatar_url = bucket.getPublicUrl(path).data.publicUrl
+        setUploadProgress(avatar && banner ? 50 : 80)
       }
       if (banner) {
-        const path = `${artist.data.id}/cover-${Date.now()}.${fileExtension(banner)}`
-        const uploaded = await db.storage.from('banners').upload(path, banner, { upsert: false })
+        const path = `${artist.data.id}/cover.${fileExtension(banner)}`
+        const bucket = db.storage.from('artist-covers')
+        const uploaded = await bucket.upload(path, banner, { upsert: true, contentType: banner.type || undefined })
         if (uploaded.error) throw uploaded.error
-        updates.banner_url = publicStorageUrl('banners', path)
+        updates.banner_url = bucket.getPublicUrl(path).data.publicUrl
+        setUploadProgress(80)
       }
       const publicResult = await db.from('artists').update(updates).eq('id', artist.data.id)
       if (publicResult.error) throw publicResult.error
       const privateResult = await db.from('artist_private_details').upsert({ artist_id: artist.data.id, ...privateDetails })
       if (privateResult.error && !['42P01', 'PGRST205'].includes(privateResult.error.code ?? '')) throw privateResult.error
     },
-    onSuccess: async () => { setEditing(false); setAvatar(null); setBanner(null); setMessage('Profile saved.'); await client.invalidateQueries({ queryKey: ['artist', slug] }) },
-    onError: (caught) => setMessage(caught instanceof Error ? caught.message : 'Profile changes could not be saved.'),
+    onSuccess: async () => { setUploadProgress(100); setEditing(false); setAvatar(null); setBanner(null); setMessage('Profile saved.'); await client.invalidateQueries({ queryKey: ['artist', slug] }); window.setTimeout(() => setUploadProgress(0), 500) },
+    onError: (caught) => { setUploadProgress(0); const text = caught instanceof Error ? caught.message : ''; setMessage(text.toLowerCase().includes('size') || text.includes('maximum') ? 'File too large - please use an image under 10MB' : 'Upload failed - please check your connection and try again') },
   })
   const avatarPreview = useMemo(() => avatar ? URL.createObjectURL(avatar) : draft.avatar_url ?? artist.data?.avatar_url, [artist.data?.avatar_url, avatar, draft.avatar_url])
   const bannerPreview = useMemo(() => banner ? URL.createObjectURL(banner) : draft.banner_url ?? artist.data?.banner_url, [artist.data?.banner_url, banner, draft.banner_url])
   useEffect(() => () => { if (avatar && avatarPreview) URL.revokeObjectURL(avatarPreview) }, [avatar, avatarPreview])
   useEffect(() => () => { if (banner && bannerPreview) URL.revokeObjectURL(bannerPreview) }, [banner, bannerPreview])
+  useEffect(() => {
+    if (!owner || !artist.data || searchParams.get('edit') !== '1' || openedEditFromUrl.current) return
+    openedEditFromUrl.current = true
+    setDraft(artist.data)
+    setPrivateDetails({ mobile_phone: privateQuery.data?.mobile_phone ?? '', mobile_money_number: privateQuery.data?.mobile_money_number ?? '', mobile_money_network: privateQuery.data?.mobile_money_network ?? '' })
+    setEditing(true)
+  }, [artist.data, owner, privateQuery.data, searchParams])
 
   if (artist.isLoading) return <LoadingState label="Loading artist..." />
   if (artist.error || !artist.data) return <ErrorState error={artist.error ?? new Error('Artist not found.')} retry={() => void artist.refetch()} />
@@ -96,8 +111,10 @@ export function ArtistPage() {
   const selectImage = async (event: ChangeEvent<HTMLInputElement>, kind: 'avatar' | 'banner') => {
     const file = event.target.files?.[0]
     if (!file) return
-    const minimum = kind === 'avatar' ? { width: 200, height: 200 } : { width: 1400, height: 400 }
-    try { await validateImage(file, minimum.width, minimum.height); if (kind === 'avatar') setAvatar(file); else setBanner(file); setMessage('') } catch (caught) { setMessage(caught instanceof Error ? caught.message : 'Image could not be used.') }
+    if (!file.type.startsWith('image/')) { setMessage('Choose a JPG, PNG, WebP, GIF, HEIC, or HEIF image.'); return }
+    if (file.size > 10 * 1024 * 1024) { setMessage('File too large - please use an image under 10MB'); return }
+    if (kind === 'avatar') setAvatar(file); else setBanner(file)
+    setMessage('')
   }
   const share = async () => { if (navigator.share) await navigator.share({ title: `${data.display_name} on SHY`, url: window.location.href }); else { await navigator.clipboard.writeText(window.location.href); setMessage('Profile link copied.') } }
   const beginEditing = () => {
@@ -108,8 +125,9 @@ export function ArtistPage() {
 
   return <div className="artist-profile-page">
     <section className="profile-banner" style={bannerPreview ? { backgroundImage: `linear-gradient(0deg, rgba(10,10,15,.84), rgba(10,10,15,.08)), url(${bannerPreview})` } : undefined}>
-      {editing && <label className="image-edit-overlay"><Camera />Change Cover Photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void selectImage(event, 'banner')} /></label>}
-      <div className="profile-avatar-wrap"><Cover src={avatarPreview} alt={data.display_name} className="hero-avatar" />{editing && <label className="image-edit-overlay avatar-edit"><Camera />Change Profile Photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void selectImage(event, 'avatar')} /></label>}</div>
+      {uploadProgress > 0 && <span className="image-upload-progress" style={{ width: `${uploadProgress}%` }} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadProgress} />}
+      {editing && <label className="image-edit-overlay"><Camera />Change Cover Photo<input type="file" accept="image/*" onChange={(event) => void selectImage(event, 'banner')} /></label>}
+      <div className="profile-avatar-wrap"><Cover src={avatarPreview} alt={data.display_name} className="hero-avatar" />{editing && <label className="image-edit-overlay avatar-edit"><Camera />Change Profile Photo<input type="file" accept="image/*" onChange={(event) => void selectImage(event, 'avatar')} /></label>}</div>
     </section>
     <section className="profile-identity">
       <div className="identity-heading"><div>{editing ? <><label>Artist name<input maxLength={100} value={draft.display_name ?? ''} onChange={(event) => setDraft((value) => ({ ...value, display_name: event.target.value }))} /></label><label>Tagline<input maxLength={80} value={draft.tagline ?? ''} onChange={(event) => setDraft((value) => ({ ...value, tagline: event.target.value }))} /><small>{draft.tagline?.length ?? 0}/80</small></label></> : <><h1>{data.display_name}{data.verified && <VerifiedBadge large />}</h1>{data.tagline && <p>{data.tagline}</p>}</>}</div>{owner && (editing ? <div className="button-row"><button className="button secondary" onClick={() => { setEditing(false); setDraft(data); setAvatar(null); setBanner(null) }}><X />Cancel</button><button className="button primary" onClick={() => saveProfile.mutate()} disabled={saveProfile.isPending}><Save />{saveProfile.isPending ? 'Saving...' : 'Save Profile'}</button></div> : <button className="button secondary" onClick={beginEditing}><Edit3 />Edit Profile</button>)}</div>
@@ -158,7 +176,6 @@ function ArtistDashboard({ artist, tracks, albums }: { artist: Artist; tracks: T
 
 function Stat({ value, label }: { value: number; label: string }) { return <div><strong>{formatCount(value)}</strong><span>{label}</span></div> }
 function DashboardStat({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) { return <article className="stat-card"><span>{icon}{label}</span><strong>{formatCount(value)}</strong></article> }
-function fileExtension(file: File) { return file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg' }
+function fileExtension(file: File) { return file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || (file.type.split('/')[1] ?? 'jpg') }
 function daysAgo(days: number) { const date = new Date(); date.setDate(date.getDate() - days); return date.toISOString() }
 function buildTrend(plays: { played_at: string }[], downloads: { downloaded_at: string }[]) { const days = Array.from({ length: 30 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() - (29 - index)); return date.toISOString().slice(0,10) }); return days.map((day) => ({ date: day.slice(5), streams: plays.filter((item) => item.played_at.startsWith(day)).length, downloads: downloads.filter((item) => item.downloaded_at.startsWith(day)).length })) }
-async function validateImage(file: File, minWidth: number, minHeight: number) { if (!['image/jpeg','image/png','image/webp'].includes(file.type)) throw new Error('Use a JPG, PNG, or WebP image.'); const url = URL.createObjectURL(file); try { const size = await new Promise<{width:number;height:number}>((resolve,reject) => { const image = new Image(); image.onload = () => resolve({width:image.naturalWidth,height:image.naturalHeight}); image.onerror = () => reject(new Error('SHY could not read this image.')); image.src=url }); if (size.width < minWidth || size.height < minHeight) throw new Error(`Image must be at least ${minWidth} x ${minHeight} pixels.`) } finally { URL.revokeObjectURL(url) } }
