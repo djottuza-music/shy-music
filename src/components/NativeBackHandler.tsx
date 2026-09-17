@@ -16,6 +16,7 @@ export function NativeBackHandler() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
     let remove: (() => Promise<void>) | undefined
+    let disposed = false
     void CapacitorApp.addListener('backButton', ({ canGoBack }) => {
       if (window.history.state?.shyOverlay) { window.history.back(); return }
       if (expanded) {
@@ -28,8 +29,8 @@ export function NativeBackHandler() {
       if (now - lastBack.current < 2_000) { void CapacitorApp.exitApp(); return }
       lastBack.current = now
       toast.showToast('Press back again to exit', 'info')
-    }).then((handle) => { remove = () => handle.remove() })
-    return () => { void remove?.() }
+    }).then((handle) => { if (disposed) void handle.remove(); else remove = () => handle.remove() })
+    return () => { disposed = true; void remove?.() }
   }, [expanded, location.pathname, setExpanded, toast])
   return null
 }

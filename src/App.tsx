@@ -1,7 +1,6 @@
-import { lazy, Suspense } from 'react'
+import { lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
-import { LoadingState } from './components/States'
 
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })))
 const AlbumPage = lazy(() => import('./pages/AlbumPage').then((module) => ({ default: module.AlbumPage })))
@@ -13,6 +12,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) =
 const DiscoverPage = lazy(() => import('./pages/DiscoverPage').then((module) => ({ default: module.DiscoverPage })))
 const HomePage = lazy(() => import('./pages/HomePage').then((module) => ({ default: module.HomePage })))
 const FansPage = lazy(() => import('./pages/FansPage').then((module) => ({ default: module.FansPage })))
+const MyArtistPage = lazy(() => import('./pages/MyArtistPage').then((module) => ({ default: module.MyArtistPage })))
 const LibraryPage = lazy(() => import('./pages/LibraryPage').then((module) => ({ default: module.LibraryPage })))
 const PlaylistPage = lazy(() => import('./pages/PlaylistPage').then((module) => ({ default: module.PlaylistPage })))
 const RadioPage = lazy(() => import('./pages/RadioPage').then((module) => ({ default: module.RadioPage })))
@@ -25,11 +25,12 @@ const NotFoundPage = lazy(() => simplePages().then((module) => ({ default: modul
 const SupportPage = lazy(() => simplePages().then((module) => ({ default: module.SupportPage })))
 
 export default function App() {
-  return <Suspense fallback={<LoadingState label="Loading SHY..." />}><Routes>
+  return <Routes>
     <Route element={<Layout />}>
       <Route index element={<HomePage />} />
       <Route path="artists" element={<ArtistsPage />} />
       <Route path="artists/:slug" element={<ArtistPage />} />
+      <Route path="my-artist" element={<MyArtistPage />} />
       <Route path="artist/:slug" element={<ArtistPage />} />
       <Route path="albums/:slug" element={<AlbumPage />} />
       <Route path="album/:slug" element={<AlbumPage />} />
@@ -50,5 +51,5 @@ export default function App() {
       <Route path="account" element={<AccountPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Route>
-  </Routes></Suspense>
+  </Routes>
 }

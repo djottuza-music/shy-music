@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Download, Heart, ListMusic, Maximize2, Pause, Play, Repeat2, Share2, Shuffle, SkipBack, SkipForward, Volume1, Volume2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Download, Heart, ListMusic, Maximize2, Mic2, Pause, Play, Repeat2, Share2, Shuffle, SkipBack, SkipForward, Volume1, Volume2, X } from 'lucide-react'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { usePlayer } from '../contexts/usePlayer'
 import { useToast } from '../contexts/ToastContext'
@@ -14,11 +14,13 @@ export function GlobalPlayer() {
   const { showToast } = useToast()
   const [queueOpen, setQueueOpen] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [lyricsOpen, setLyricsOpen] = useState(false)
+  const { expanded, setExpanded } = player
   useEffect(() => {
-    const onPopState = () => { if (player.expanded) player.setExpanded(false) }
+    const onPopState = () => { if (expanded) setExpanded(false) }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
-  }, [player])
+  }, [expanded, setExpanded])
   if (!player.current) return null
   const progressMax = Math.max(player.duration, 1)
   const progress = Math.min(100, (player.currentTime / progressMax) * 100)
@@ -58,11 +60,14 @@ export function GlobalPlayer() {
     {queueOpen && <QueuePanel close={() => setQueueOpen(false)} />}
     {player.expanded && <div className="now-playing" role="dialog" aria-modal="true" aria-label="Now playing view">
       <div className="now-playing-top"><button className="icon-button" onClick={closePlayer} aria-label="Close now playing"><ChevronDown /></button><span>Now playing</span><div className="now-playing-actions"><button className="icon-button" onClick={() => setQueueOpen(true)} aria-label="Open play queue"><ListMusic /></button><CurrentTrackLike trackId={player.current.id} /></div></div>
-      <Cover src={player.current.cover_url} alt={`${player.current.title} cover art`} className="now-cover" />
+      <button className="button secondary lyrics-toggle" aria-expanded={lyricsOpen} onClick={() => setLyricsOpen(!lyricsOpen)}><Mic2 />Lyrics</button>
+      {lyricsOpen ? <section className="now-lyrics"><h2>{player.current.title}</h2><p>{player.current.lyrics || 'Lyrics have not been added for this song.'}</p></section> : <Cover src={player.current.cover_url} alt={`${player.current.title} cover art`} className="now-cover" />}
+      <div className={`player-waveform ${player.isPlaying ? 'is-playing' : ''}`} aria-hidden="true">{Array.from({ length: 48 }, (_, index) => <i key={index} style={{ height: `${18 + 62 * Math.abs(Math.sin(index * .24) * Math.cos(index * .09))}%`, animationDelay: `${index * -.08}s` }} />)}</div>
       <div className="now-copy"><h1 title={player.current.title}>{player.current.title}</h1><p>{player.current.artist?.display_name}{player.current.artist?.verified && <VerifiedBadge />}</p></div>
+      <div className="now-social"><CurrentTrackLike trackId={player.current.id} /><button className="icon-button" onClick={() => void share()} aria-label="Share current song"><Share2 /></button></div>
       <div className="progress-line large"><span>{formatDuration(player.currentTime)}</span><input type="range" min="0" max={progressMax} value={Math.min(player.currentTime, progressMax)} onChange={(event) => player.seek(Number(event.target.value))} aria-label="Song progress" /><span>{formatDuration(player.duration)}</span></div>
-      <div className="player-controls large"><button className="icon-button" onClick={player.previous} aria-label="Previous"><SkipBack fill="currentColor" /></button><button className="main-play" onClick={player.toggle} aria-label={player.isPlaying ? 'Pause' : 'Play'}>{player.isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</button><button className="icon-button" onClick={player.next} aria-label="Next"><SkipForward fill="currentColor" /></button></div>
-      <div className="now-secondary-controls"><button className={`icon-button ${player.shuffle ? 'selected' : ''}`} onClick={() => player.setShuffle(!player.shuffle)} aria-pressed={player.shuffle} aria-label="Shuffle"><Shuffle /></button><button className={`icon-button ${player.repeat ? 'selected' : ''}`} onClick={() => player.setRepeat(!player.repeat)} aria-pressed={player.repeat} aria-label="Repeat"><Repeat2 /></button><button className="icon-button" onClick={() => void download()} disabled={downloading} aria-label="Download song"><Download /></button><button className="icon-button" onClick={() => void share()} aria-label="Share song"><Share2 /></button></div>
+      <div className="player-controls large"><button className={`icon-button ${player.shuffle ? 'selected' : ''}`} onClick={() => player.setShuffle(!player.shuffle)} aria-pressed={player.shuffle} aria-label="Shuffle"><Shuffle /></button><button className={`icon-button ${player.repeat ? 'selected' : ''}`} onClick={() => player.setRepeat(!player.repeat)} aria-pressed={player.repeat} aria-label="Repeat"><Repeat2 /></button><button className="icon-button" onClick={player.previous} aria-label="Previous"><SkipBack /></button><button className="main-play" onClick={player.toggle} aria-label={player.isPlaying ? 'Pause' : 'Play'}>{player.isPlaying ? <Pause /> : <Play fill="currentColor" />}</button><button className="icon-button" onClick={player.next} aria-label="Next"><SkipForward /></button></div>
+      <div className="now-secondary-controls"><button className="icon-button" onClick={() => void download()} disabled={downloading} aria-label="Download song"><Download /></button><button className="icon-button" onClick={() => setQueueOpen(true)} aria-label="Open play queue"><ListMusic /></button></div>
       <div className="now-volume"><Volume1 /><input type="range" min="0" max="1" step="0.05" value={player.volume} onChange={(event) => player.setVolume(Number(event.target.value))} aria-label="Volume" /><Volume2 /></div>
       {player.current.artist?.motivation_phone && <MotivateButton artistId={player.current.artist_id} artistName={player.current.artist.display_name} phone={player.current.artist.motivation_phone} />}
     </div>}

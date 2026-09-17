@@ -7,7 +7,7 @@ import { Shelf } from '../components/Shelf'
 import { Cover, EmptyState, ErrorState, LoadingState } from '../components/States'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import { usePlayer } from '../contexts/usePlayer'
-import { getAlbum, getFanOfTheWeek, listPublishedAlbums, listPublishedTracks, listRankedAlbums, listRankedTracks, listRisingArtists, type RisingArtist } from '../lib/catalog'
+import { getAlbum, getFanOfTheWeek, listArtists, listFreshTracks, listUpcomingReleases, listPublishedAlbums, listPublishedTracks, listRankedAlbums, listRankedTracks, listRisingArtists, type RisingArtist } from '../lib/catalog'
 import { formatCount } from '../lib/format'
 import { isSupabaseConfigured } from '../lib/supabase'
 import type { Album, Track } from '../types'
@@ -20,18 +20,23 @@ export function HomePage() {
   const weeklyAlbums = useQuery({ queryKey: ['album-ranking', 7], queryFn: async () => { const items = await listRankedAlbums(7, 4); return items.length ? items : listPublishedAlbums(4) }, enabled: isSupabaseConfigured })
   const monthlyAlbums = useQuery({ queryKey: ['album-ranking', 30], queryFn: async () => { const items = await listRankedAlbums(30, 4); return items.length ? items : listPublishedAlbums(4) }, enabled: isSupabaseConfigured })
   const risingArtists = useQuery({ queryKey: ['rising-artists', 30], queryFn: () => listRisingArtists(30, 10), enabled: isSupabaseConfigured })
+  const artists = useQuery({ queryKey: ['artists'], queryFn: listArtists, enabled: isSupabaseConfigured })
+  const fresh = useQuery({ queryKey: ['fresh-drops'], queryFn: async () => (await listFreshTracks(30)).filter((track) => new Date(track.release_at ?? track.created_at).getTime() >= Date.now() - 7 * 86400000), enabled: isSupabaseConfigured })
+  const upcoming = useQuery({ queryKey: ['upcoming-releases'], queryFn: listUpcomingReleases, enabled: isSupabaseConfigured })
 
   if (!isSupabaseConfigured) return <SetupPanel />
   if (trending.error) return <ErrorState error={trending.error} retry={() => trending.refetch()} />
   const songs = trending.data ?? []
   return <div className="home-page">
     {trending.isLoading ? <LoadingState label="Loading Track of the Week" /> : songs[0] ? <TrackOfWeek track={songs[0]} queue={songs} /> : <EmptyState title="The stage is ready" text="Published music will appear here as soon as the first artist goes live." />}
-    {fan.isLoading ? <LoadingState label="Loading Fan of the Week" /> : <FanBanner fan={fan.data ?? null} />}
+    <section className="fresh-drops"><div className="section-heading"><h2>Fresh Drops</h2><Link to="/discover">See all</Link></div>{fresh.isLoading ? <LoadingState /> : fresh.error ? <ErrorState error={fresh.error} retry={() => void fresh.refetch()} /> : fresh.data?.length ? <div className="shelf">{fresh.data.map((track) => <HomeTrackCard key={track.id} track={track} queue={fresh.data} />)}</div> : <EmptyState title="No new releases yet" text="Check back next week or be the first to upload." />}</section>
     <Shelf title="Trending Now" action={<Link to="/charts">See all</Link>}>{trending.isLoading ? <ShelfSkeleton /> : songs.map((track) => <HomeTrackCard key={track.id} track={track} queue={songs} />)}</Shelf>
-    <Shelf title="Rising Artists" action={<Link to="/artists">See all</Link>}>{risingArtists.isLoading ? <ShelfSkeleton /> : (risingArtists.data ?? []).map((artist) => <RisingArtistCard key={artist.id} artist={artist} />)}</Shelf>
+    <Shelf title="Rising Artists" action={<Link to="/artists">See all</Link>}>{risingArtists.isLoading ? <ShelfSkeleton /> : (risingArtists.data?.length ? risingArtists.data : (artists.data ?? []).map((artist) => ({ ...artist, listener_count: 0, recent_play_count: 0 }))).map((artist) => <RisingArtistCard key={artist.id} artist={artist} />)}</Shelf>
     <Shelf title="Fans Love" action={<Link to="/charts">See all</Link>}>{fansLove.isLoading ? <ShelfSkeleton /> : (fansLove.data ?? []).map((track) => <HomeTrackCard key={track.id} track={track} queue={fansLove.data ?? []} />)}</Shelf>
+    {fan.isLoading ? <LoadingState label="Loading Fan of the Week" /> : <FanBanner fan={fan.data ?? null} />}
     <FeatureAlbums title="Album of the Week" albums={weeklyAlbums.data ?? []} loading={weeklyAlbums.isLoading} />
     <FeatureAlbums title="Album of the Month" albums={monthlyAlbums.data ?? []} loading={monthlyAlbums.isLoading} />
+    <section className="watch-out-home"><h2>Watch Out</h2>{upcoming.isPending ? <LoadingState /> : upcoming.error ? <ErrorState error={new Error('Upcoming releases are temporarily unavailable.')} retry={() => void upcoming.refetch()} /> : upcoming.data?.length ? upcoming.data.map((release) => <article key={release.id}><h3>{release.title}</h3><p>{release.artist_name}</p><time dateTime={release.release_at}>{new Date(release.release_at).toLocaleString()}</time></article>) : <EmptyState title="No upcoming releases yet" text="Scheduled songs and albums appear here before release day." />}</section>
   </div>
 }
 

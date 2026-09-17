@@ -25,13 +25,15 @@ const socialFields = [
 
 export function ArtistPage() {
   const { slug = '' } = useParams()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const auth = useAuth()
   const client = useQueryClient()
   const artist = useQuery({ queryKey: ['artist', slug], queryFn: () => getArtist(slug) })
   const owner = Boolean(auth.user && artist.data?.user_id === auth.user.id)
   const catalog = useQuery({ queryKey: ['artist-catalog', artist.data?.id, owner], queryFn: () => listArtistCatalog(artist.data!.id, owner), enabled: Boolean(artist.data?.id) })
-  const [tab, setTab] = useState<Tab>(() => searchParams.get('tab') === 'dashboard' ? 'dashboard' : 'overview')
+  const requestedTab = searchParams.get('tab') as Tab | null
+  const tab: Tab = requestedTab && ['overview', 'songs', 'albums', 'about', 'dashboard'].includes(requestedTab) ? requestedTab : 'overview'
+  const setTab = (next: Tab) => setSearchParams((params) => { params.set('tab', next); return params })
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Partial<Artist>>({})
   const [avatar, setAvatar] = useState<File | null>(null)
@@ -151,7 +153,7 @@ function ArtistTab({ tab, artist, tracks, albums, owner, editing, draft, setDraf
   if (tab === 'songs') return <section className="profile-tab-content"><div className="list-toolbar"><select value={songSort} onChange={(event) => setSongSort(event.target.value)} aria-label="Sort songs"><option value="recent">Most Recent</option><option value="streams">Most Streamed</option><option value="downloads">Most Downloaded</option><option value="az">A-Z</option></select></div><details className="filter-panel"><summary>Filter songs <span className="filter-count">{genreFilter.length + moodFilter.length} selected</span></summary><MetadataPicker label="Genres" values={genreFilter} onChange={setGenreFilter} kind="genre" minimum={0} /><MetadataPicker label="Moods" values={moodFilter} onChange={setMoodFilter} kind="mood" minimum={0} /></details>{sorted.length ? <div className="track-list">{sorted.map((track, index) => <TrackRow key={track.id} track={track} queue={sorted} index={index} />)}</div> : <EmptyState title="No matching songs" text="Clear filters to see the full catalog." />}</section>
   if (tab === 'albums') return <section className="profile-tab-content">{albums.length ? <div className="media-grid">{albums.map((album) => <AlbumCard key={album.id} album={{ ...album, artist }} />)}</div> : <EmptyState title="No albums yet" text="Published projects will appear here." />}</section>
   if (tab === 'about') return <AboutTab artist={artist} editing={editing && owner} draft={draft} setDraft={setDraft} privateDetails={privateDetails} setPrivateDetails={setPrivateDetails} />
-  return owner ? <ArtistDashboard artist={artist} tracks={tracks} albums={albums} /> : null
+  return owner ? <ArtistDashboard artist={artist} tracks={tracks} albums={albums} /> : <EmptyState title="Artist dashboard access" text="Sign in to the account that owns this artist profile to manage its music." />
 }
 
 function AboutTab({ artist, editing, draft, setDraft, privateDetails, setPrivateDetails }: { artist: Artist; editing: boolean; draft: Partial<Artist>; setDraft: React.Dispatch<React.SetStateAction<Partial<Artist>>>; privateDetails: { mobile_phone: string; mobile_money_number: string; mobile_money_network: string }; setPrivateDetails: React.Dispatch<React.SetStateAction<{ mobile_phone: string; mobile_money_number: string; mobile_money_network: string }>> }) {

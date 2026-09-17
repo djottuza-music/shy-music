@@ -13,7 +13,7 @@ export async function listArtists(): Promise<Artist[]> {
 }
 
 export async function getArtist(slug: string): Promise<Artist> {
-  const { data, error } = await requireSupabase().from('artists').select('*').eq('slug', slug).single()
+  const { data, error } = await requireSupabase().from('artists').select('*').eq('slug', slug).abortSignal(AbortSignal.timeout(15000)).single()
   if (error) throw error
   return data as Artist
 }
@@ -53,7 +53,7 @@ export async function listRankedTracks(metric: 'plays' | 'listeners', days = 7, 
   const byId = new Map(hydrateTracks((data ?? []) as Track[]).map((track) => [track.id, track]))
   return rows.map((row) => {
     const track = byId.get(row.track_id)
-    return track ? { ...track, plays_count: Number(row.play_count) } : null
+    return track ?? null
   }).filter((track): track is Track => Boolean(track))
 }
 
@@ -105,6 +105,12 @@ export interface FanOfWeek {
   profile: { display_name: string; avatar_url: string | null } | null
   artist: Pick<Artist, 'display_name' | 'slug' | 'verified'> | null
   track: Track | null
+}
+
+export async function listUpcomingReleases(): Promise<Array<{ id: string; title: string; release_at: string; artist_name: string }>> {
+  const { data, error } = await requireSupabase().rpc('get_upcoming_releases')
+  if (error) throw error
+  return data ?? []
 }
 
 export interface TopListener {
