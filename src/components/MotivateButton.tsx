@@ -1,4 +1,4 @@
-import { Check, Copy, Smartphone, X } from 'lucide-react'
+import { Check, Copy, Gift, Smartphone, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -41,7 +41,7 @@ export function MotivateButton({ artistName, phone, artistId }: { artistName: st
     return () => { document.removeEventListener('keydown', onKey); (previous ?? opener)?.focus() }
   }, [open])
   return <>
-    <button ref={openerRef} className="button gradient" onClick={show}><Smartphone />Motivate artist</button>
+    <button ref={openerRef} className="button gradient motivate-button" onClick={show}><Gift />Motivate Artist</button>
     {open && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false) }}>
       <section ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="motivate-title">
         <span className="modal-drag-handle" aria-hidden="true" />

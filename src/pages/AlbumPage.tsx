@@ -1,35 +1,50 @@
 import JSZip from 'jszip'
 import { useQuery } from '@tanstack/react-query'
-import { Download, Pause, Play, Share2, Shuffle } from 'lucide-react'
-import { useState } from 'react'
+import { Download, Pause, Play, Shuffle } from 'lucide-react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { AlbumCard, TrackCard } from '../components/Cards'
 import { Comments } from '../components/Comments'
-import { MetadataChips } from '../components/MetadataChips'
 import { ReportButton } from '../components/ReportButton'
 import { Cover, ErrorState, LoadingState } from '../components/States'
 import { TrackRow } from '../components/TrackRow'
+import { VerifiedBadge } from '../components/VerifiedBadge'
 import { usePlayer } from '../contexts/usePlayer'
-import { getAlbum, getDownloadUrl } from '../lib/catalog'
+import { getAlbum, getDownloadUrl, listArtistCatalog, listPublishedTracks } from '../lib/catalog'
 import { trackDownloadName } from '../lib/download'
-import { formatCount, formatDuration } from '../lib/format'
+import { formatDuration } from '../lib/format'
+
+type AlbumPalette = { color: string; rgb: string }
+const defaultPalette: AlbumPalette = { color: '#7C3AED', rgb: '124,58,237' }
 
 export function AlbumPage() {
   const { slug = '' } = useParams()
   const result = useQuery({ queryKey: ['album', slug], queryFn: () => getAlbum(slug) })
+  const artistCatalog = useQuery({ queryKey: ['album-artist-catalog', result.data?.album.artist_id], queryFn: () => listArtistCatalog(result.data!.album.artist_id), enabled: Boolean(result.data?.album.artist_id) })
+  const recommendations = useQuery({ queryKey: ['album-recommendations'], queryFn: () => listPublishedTracks(50) })
   const player = usePlayer()
   const [message, setMessage] = useState('')
   const [downloadProgress, setDownloadProgress] = useState(0)
+  const [collapsed, setCollapsed] = useState(false)
+  const palette = useAlbumPalette(result.data?.album.cover_url)
+
+  useEffect(() => {
+    let frame = 0
+    const update = () => { frame = 0; setCollapsed(window.scrollY > (window.innerWidth <= 760 ? 200 : 280)) }
+    const onScroll = () => { if (!frame) frame = window.requestAnimationFrame(update) }
+    update(); window.addEventListener('scroll', onScroll, { passive: true })
+    return () => { window.removeEventListener('scroll', onScroll); if (frame) window.cancelAnimationFrame(frame) }
+  }, [])
+
   if (result.isLoading) return <LoadingState label="Loading album..." />
   if (result.error || !result.data) return <ErrorState error={result.error ?? new Error('Album not found.')} retry={() => void result.refetch()} />
   const { album, tracks } = result.data
   const active = tracks.some((track) => track.id === player.current?.id)
   const totalDuration = album.total_duration_seconds || tracks.reduce((sum, track) => sum + track.duration_seconds, 0)
-  const share = async () => {
-    try {
-      if (navigator.share) await navigator.share({ title: `${album.title} on SHY`, url: window.location.href })
-      else { await navigator.clipboard.writeText(window.location.href); setMessage('Album link copied.') }
-    } catch (caught) { if ((caught as DOMException).name !== 'AbortError') setMessage('The album link could not be shared.') }
-  }
+  const otherAlbums = (artistCatalog.data?.albums ?? []).filter((item) => item.id !== album.id).slice(0, 8)
+  const relatedTracks = (recommendations.data ?? []).filter((track) => track.artist_id !== album.artist_id && track.genres?.some((genre) => album.genres?.includes(genre))).slice(0, 8)
+  const albumStyle = { '--album-color': palette.color, '--album-rgb': palette.rgb } as CSSProperties
+
   const playAll = () => {
     if (!tracks.length) return
     if (active) void player.toggle()
@@ -38,8 +53,7 @@ export function AlbumPage() {
   const shuffle = () => {
     if (!tracks.length) return
     const shuffled = [...tracks].sort(() => Math.random() - .5)
-    player.setShuffle(true)
-    void player.play(shuffled[0], shuffled)
+    player.setShuffle(true); void player.play(shuffled[0], shuffled)
   }
   const downloadAlbum = async () => {
     const downloadable = tracks.filter((track) => track.downloadable)
@@ -63,5 +77,59 @@ export function AlbumPage() {
     } catch (caught) { setMessage(caught instanceof Error ? caught.message : 'Album download failed.') } finally { setDownloadProgress(0) }
   }
 
-  return <div className="release-detail-page"><section className="album-hero"><Cover src={album.cover_url} alt={album.title} className="album-cover-large" /><div className="release-copy"><span className="eyebrow">{album.release_type}</span><h1>{album.title}</h1>{album.artist && <Link className="artist-link" to={`/artists/${album.artist.slug}`}>{album.artist.display_name}</Link>}<p>{album.release_at ? new Date(album.release_at).getFullYear() : 'Unreleased'} · {tracks.length} tracks · {formatDuration(totalDuration)}</p><MetadataChips values={album.genres} /><MetadataChips values={album.moods} tone="neutral" /><div className="stat-line"><span>{formatCount(tracks.reduce((sum, track) => sum + track.plays_count, 0))} streams</span><span>{formatCount(tracks.reduce((sum, track) => sum + (track.downloads_count ?? 0), 0))} downloads</span></div><div className="hero-actions">{tracks[0] && <button className="button primary large-action" onClick={playAll}>{active && player.isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}{active && player.isPlaying ? 'Pause' : 'Play All'}</button>}<button className="button secondary" onClick={shuffle}><Shuffle />Shuffle</button><button className="button secondary" onClick={() => void downloadAlbum()} disabled={downloadProgress > 0}><Download />{downloadProgress ? `Preparing ${downloadProgress}%` : 'Download Album'}</button><button className="button secondary" onClick={() => void share()}><Share2 />Share</button><ReportButton targetType="album" targetId={album.id} targetName={album.title} /></div>{message && <p className="form-message" role="status">{message}</p>}</div></section><section className="release-section"><div className="section-heading"><h2>Tracklist</h2><span>{tracks.length} tracks</span></div><div className="track-list">{tracks.map((track, index) => <TrackRow key={track.id} track={track} queue={tracks} index={index} />)}</div></section>{album.description && <section className="release-section"><h2>About this album</h2><details className="expandable-copy" open={album.description.length < 320}><summary>Read album notes</summary><p>{album.description}</p></details></section>}<Comments albumId={album.id} /></div>
+  return <div className="album-detail-page" style={albumStyle}>
+    <header className={`album-sticky-header ${collapsed ? 'visible' : ''}`} aria-hidden={!collapsed}>
+      <Cover src={album.cover_url} alt="" /><span><strong>{album.title}</strong><small>{album.artist?.display_name}</small></span><button onClick={playAll} aria-label={`Play ${album.title}`}>{active && player.isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</button><button onClick={shuffle} aria-label={`Shuffle ${album.title}`}><Shuffle /></button>
+    </header>
+    <section className="album-detail-hero">
+      <Cover src={album.cover_url} alt={`${album.title} cover art`} className="album-detail-cover" />
+      <div className="album-detail-copy"><span className="album-type">{album.release_type}</span><h1>{album.title}</h1>{album.artist && <Link className="album-artist-link" to={`/artists/${album.artist.slug}`}><Cover src={album.artist.avatar_url} alt="" />{album.artist.display_name}{album.artist.verified && <VerifiedBadge />}</Link>}<p>{album.release_at ? new Date(album.release_at).getFullYear() : 'Unreleased'} · {tracks.length} Songs · {formatDuration(totalDuration)}{album.genres?.[0] ? ` · ${album.genres[0]}` : ''}{tracks.some((track) => track.explicit) ? ' · E' : ''}</p><div className="album-primary-actions">{tracks[0] && <button className="album-play" onClick={playAll}>{active && player.isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}{active && player.isPlaying ? 'Pause' : 'Play'}</button>}<button className="album-shuffle" onClick={shuffle}><Shuffle />Shuffle</button></div><div className="album-secondary-actions"><button onClick={() => void downloadAlbum()} disabled={downloadProgress > 0} title="Download Album"><Download /><span>{downloadProgress ? `${downloadProgress}%` : 'Download Album'}</span></button><ReportButton targetType="album" targetId={album.id} targetName={album.title} /></div>{message && <p className="form-message" role="status">{message}</p>}</div>
+    </section>
+    <section className="album-track-list" aria-label={`${album.title} tracks`}>{tracks.map((track, index) => <TrackRow key={track.id} track={track} queue={tracks} index={index} compact />)}</section>
+    <section className="album-detail-footer">
+      <dl className="album-credits"><Info label="Released" value={album.release_at ? new Intl.DateTimeFormat('en', { dateStyle: 'long' }).format(new Date(album.release_at)) : 'Unreleased'} /><Info label="Total Songs" value={String(tracks.length)} /><Info label="Total Duration" value={formatDuration(totalDuration)} /><Info label="Made with" value={tracks.find((track) => track.ai_tool)?.ai_tool ?? 'Not specified'} /><Info label="Genre" value={album.genres?.join(' · ') || 'Not specified'} /><Info label="Mood" value={album.moods?.join(' · ') || 'Not specified'} /></dl>
+      {otherAlbums.length > 0 && <section className="album-related"><div className="section-heading"><h2>More by {album.artist?.display_name}</h2><Link to={`/artists/${album.artist?.slug}?tab=albums`}>See All</Link></div><div className="media-grid">{otherAlbums.map((item) => <AlbumCard key={item.id} album={{ ...item, artist: album.artist }} />)}</div></section>}
+      {relatedTracks.length > 0 && <section className="album-related"><div className="section-heading"><h2>Listeners Also Played</h2></div><div className="media-grid album-related-tracks">{relatedTracks.map((track) => <TrackCard key={track.id} track={track} queue={relatedTracks} />)}</div></section>}
+      {album.description && <section className="release-section"><h2>About this album</h2><p>{album.description}</p></section>}
+      <Comments albumId={album.id} />
+    </section>
+  </div>
+}
+
+function Info({ label, value }: { label: string; value: string }) { return <div><dt>{label}</dt><dd>{value}</dd></div> }
+
+function useAlbumPalette(url?: string | null): AlbumPalette {
+  const [palette, setPalette] = useState(defaultPalette)
+  useEffect(() => {
+    if (!url) return
+    let cancelled = false
+    const timer = window.setTimeout(() => { if (!cancelled) setPalette(defaultPalette) }, 1000)
+    const image = new Image(); image.crossOrigin = 'anonymous'
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32
+        const context = canvas.getContext('2d', { willReadFrequently: true }); if (!context) return
+        context.drawImage(image, 0, 0, 32, 32)
+        const pixels = context.getImageData(0, 0, 32, 32).data
+        let r = 0; let g = 0; let b = 0; let weight = 0
+        for (let index = 0; index < pixels.length; index += 16) {
+          if (pixels[index + 3] < 180) continue
+          const max = Math.max(pixels[index], pixels[index + 1], pixels[index + 2]); const min = Math.min(pixels[index], pixels[index + 1], pixels[index + 2])
+          const saturation = max ? (max - min) / max : 0; const brightness = (max + min) / 510
+          if (brightness < .12 || brightness > .92) continue
+          const importance = .2 + saturation
+          r += pixels[index] * importance; g += pixels[index + 1] * importance; b += pixels[index + 2] * importance; weight += importance
+        }
+        if (!weight || cancelled) return
+        const rgb = [Math.round(r / weight), Math.round(g / weight), Math.round(b / weight)]
+        const max = Math.max(...rgb); const min = Math.min(...rgb); const saturation = max ? (max - min) / max : 0
+        const selected = saturation > .4 ? rgb : [124, 58, 237]
+        setPalette({ color: `rgb(${selected.join(',')})`, rgb: selected.join(',') })
+      } catch { if (!cancelled) setPalette(defaultPalette) } finally { window.clearTimeout(timer) }
+    }
+    image.onerror = () => { window.clearTimeout(timer); if (!cancelled) setPalette(defaultPalette) }
+    image.src = url
+    return () => { cancelled = true; window.clearTimeout(timer); image.onload = null; image.onerror = null }
+  }, [url])
+  return useMemo(() => url ? palette : defaultPalette, [palette, url])
 }
