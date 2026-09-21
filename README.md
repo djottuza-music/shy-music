@@ -41,4 +41,4 @@ npm run android:sync
 npm run android:build
 ```
 
-The Android package embeds the tested web build. Website deployments do not silently replace code in an installed Android app. Any web, native plugin, or Android configuration change requires a new APK/AAB release; both applications continue to use the same Supabase catalogue and accounts.
+The Android package is a connected Capacitor shell for the canonical GitHub Pages app at `https://djottuza-music.github.io/shy-music/`. Install the APK once; subsequent web-only deployments are loaded automatically the next time the Android app starts or reloads. Native plugin, Android permission, launcher icon, or other native configuration changes still require a new APK/AAB release. Both applications use the same Supabase catalogue and accounts.

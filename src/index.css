@@ -310,12 +310,17 @@
 }
 .home-page .purple-band .section-heading { padding: 0; }
 .home-page .purple-band .shelf-frame {
-  overflow: hidden;
-  padding: 40px 24px 30px;
+  overflow: visible;
+  padding: 0;
   border-radius: 16px;
   background: linear-gradient(180deg,#0A0A0F 0%,#120828 50%,#0A0A0F 100%);
 }
-.home-page .purple-band .shelf { padding: 0; }
+.home-page .purple-band .shelf {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 40px 24px 30px;
+  scroll-padding-inline: 24px;
+}
 
 @media (min-width: 761px) {
   .home-page .feature-album-grid {
@@ -332,11 +337,6 @@
     0 0 24px rgba(139,92,246,.5),
     0 0 40px rgba(91,33,182,.24);
 }
-.home-page .purple-band .home-track-art {
-  width: 132px;
-  height: 132px;
-}
-
 /* Animate the artwork, not a shaped halo. */
 @media (min-width: 761px) {
   .home-page .home-track-art .cover {
@@ -433,10 +433,13 @@
   .home-page .purple-band .shelf-frame {
     width: calc(100% + 32px);
     margin-inline: -16px;
-    padding: 16px 16px 24px;
+    padding: 0;
     border-radius: 0;
   }
-  .home-page .purple-band .shelf { padding-inline: 0; }
+  .home-page .purple-band .shelf {
+    padding: 34px 16px 24px;
+    scroll-padding-inline: 16px;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -1820,11 +1823,59 @@ textarea { font-size: 16px; }
     width: clamp(108px,30vw,128px);
     height: clamp(108px,30vw,128px);
   }
-  .home-page .purple-band .shelf-frame {
-    padding-top: 34px;
+}
+
+/* Keep circular art and its light inside horizontal scrollports without clipping. */
+.home-track-card,
+.rising-artist-card,
+.home-track-art,
+.rising-artist-art {
+  overflow: visible;
+  clip-path: none;
+}
+
+.home-track-art,
+.rising-artist-art {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.home-track-art .cover,
+.rising-artist-art .cover {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.fans-page .shelf-frame,
+.home-page .rising-artists-section .shelf-frame {
+  overflow: visible;
+}
+
+.fans-page .shelf,
+.home-page .rising-artists-section .shelf {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-top: 32px;
+  padding-bottom: 24px;
+}
+
+.fans-page .home-track-art {
+  width: 150px;
+  height: 150px;
+}
+
+@media (max-width: 760px) {
+  .fans-page .shelf,
+  .home-page .rising-artists-section .shelf {
+    padding-top: 24px;
+    padding-bottom: 18px;
   }
-  .home-page .purple-band .home-track-art {
-    width: 104px;
-    height: 104px;
+
+  .fans-page .home-track-art {
+    width: 120px;
+    height: 120px;
   }
 }
