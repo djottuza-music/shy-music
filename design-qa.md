@@ -8,11 +8,13 @@
 - `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 162950.png` (mobile feature typography reference)
 - `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 164803.png` (diffuse artwork glow and circular player-art reference)
 - `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 174726.png` (album stream-total regression reference)
+- `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 211933 (SHAPING).png` (1436 x 528 px; shelf top/bottom shaping reference)
 - `C:\Users\BACKSPACE\Downloads\Recording 2026-09-21 162749 (SHY).mp4` (7.7-second album hover-motion reference)
 
 **Implementation Evidence**
 - URL: `http://127.0.0.1:4173/`
 - Browser-rendered captures: Codex in-app browser tab 1, captured in this task after the final CSS pass.
+- Latest focused shelf capture: Codex in-app browser tab 12 at 1432 x 900 CSS px and 1x density.
 - Desktop viewport: 1607 x 700 CSS px at 1x density.
 - Mobile viewport: 390 x 844 CSS px at 1x density.
 - State: public home, KOPA artist profile, and BITS & PIECES album page with live Supabase data; mobile responsive state; motivation dialog opened and copied successfully.
@@ -33,11 +35,13 @@
 - Trending and rising-artist artwork now emits layered violet light directly from the image edge; the previous blurred pseudo-element and legacy glow object are disabled so no gray-purple shape is visible.
 - The expanded mobile player artwork is constrained to equal width and height with a circular crop at every mobile viewport height.
 - Home featured-album covers are compact 108-138px square cases with restrained inset depth, perspective, and violet light rather than oversized flat artwork.
+- Trending Now and Fans Love now use matching near-black top and bottom edges around a restrained violet center; the former lighter purple cap is gone. All cover images remain complete 150px circles with 28px of top clearance inside the clipped rounded panel.
 
 **Focused Region Comparison Evidence**
 - Hero: compared against `OLD SHY.png` at the matching 1607px desktop width.
 - Song shelf: compared against `OLD SHY 2.png`, including heading placement, shared band background, circular artwork, control order, typography, and card density.
 - Featured albums: compared against `OLD SHY 3.png`, including two-column layout, square covers, metadata hierarchy, and section spacing.
+- Shelf shaping: compared the user-annotated 1436 x 528 source against the focused 1432px browser render. The revised panel has one continuous rounded shape, matching dark top/bottom tones, no separate cap, and no cropped artwork. No additional crop was needed because the relevant shelf occupies the full source width and remains clearly readable in the browser capture.
 
 **Findings**
 - No actionable P0, P1, or P2 visual mismatch remains.
@@ -49,16 +53,18 @@
 - Iteration 1: [P2] Purple shelf backgrounds included the section headings, unlike the reference. Moved the continuous gradient to `.shelf-frame`; revised captures show headings on black above the band.
 - Iteration 1: [P2] Desktop album cards expanded beyond the source's compact format. Locked desktop feature columns to 160px while retaining responsive two-column mobile sizing.
 - Iteration 2: post-fix desktop and mobile browser captures showed no remaining P0/P1/P2 issue. Playback and the motivation dialog were exercised in the same rendered build; no browser console errors were recorded.
+- Iteration 3: [P2] The shelf gradient began with a lighter purple top cap that visually separated the upper artwork area from the lower metadata area. Changed the shelf frame to matching `#0A0A0F` top and bottom stops with a restrained violet midpoint, retained 16px rounding, and increased vertical clearance to 28px/30px. The post-fix 1432px browser capture shows one continuous panel and fully visible circular covers.
 
 **Verification**
 - `npm run typecheck`: passed.
 - `npm run lint`: passed.
-- `npm test`: passed, 9 files and 24 tests.
+- `npm test`: passed, 9 files and 25 tests.
 - `npm run build`: passed, including GitHub Pages SPA fallback generation.
 - Browser: home, artist, and album routes rendered; every displayed KOPA song showed at least 20K streams; KOPA showed 10K listeners; motivation opened, copied, and remained responsive; mobile responsive state passed.
 - Current mobile browser capture confirmed the overlay play buttons are absent, Wake Up and 20K are reduced, 20K is violet, artwork glows remain visible, and no player/card overlap was introduced.
 - Current mobile browser captures confirmed a true circular expanded player cover, shape-free violet spill on song and rising-artist artwork, and smaller square 3D album cases; the browser console reported no warnings or errors.
 - Desktop and mobile captures confirm the violet artwork light is visible before hover and the Track of the Week total uses the same compact violet 20px treatment at both breakpoints.
+- The revised shelf was measured at 1432px desktop and 390px mobile: desktop covers remain 150 x 150 with 28px top clearance; mobile covers remain 120 x 120 with 24px top clearance. The in-app browser reported no console errors.
 - Production database verification recorded one qualified KOPA play from 20,000 to 20,200 and confirmed BITS & PIECES increased from 220,000 to 220,200; the ranked-album result matched the summed track total exactly.
 
 **Follow-up Polish**

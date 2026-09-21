@@ -311,9 +311,9 @@
 .home-page .purple-band .section-heading { padding: 0; }
 .home-page .purple-band .shelf-frame {
   overflow: hidden;
-  padding: 16px 24px 24px;
+  padding: 28px 24px 30px;
   border-radius: 16px;
-  background: linear-gradient(180deg,#150b30 0%,#120828 40%,#0e0620 80%,#0A0A0F 100%);
+  background: linear-gradient(180deg,#0A0A0F 0%,#120828 50%,#0A0A0F 100%);
 }
 .home-page .purple-band .shelf { padding: 0; }
 
@@ -325,9 +325,6 @@
 }
 
 /* Keep one clean shelf edge while preserving a visible, diffuse artwork glow. */
-.home-page .purple-band .shelf-frame {
-  padding-top: 28px;
-}
 .home-page .purple-band .home-track-art .cover,
 .home-page .purple-band .home-track-card:hover .home-track-art .cover {
   box-shadow:
