@@ -353,7 +353,7 @@ export function ArtistPage() {
         {editing && (
           <label className="image-edit-overlay">
             <Camera />
-            Change Cover Photo
+            Change Background
             <input
               type="file"
               accept="image/*"
@@ -361,6 +361,16 @@ export function ArtistPage() {
             />
           </label>
         )}
+        <div className="artist-profile-avatar">
+          <Cover src={avatarPreview} alt={`${data.display_name} profile picture`} />
+          {editing && (
+            <label className="avatar-edit-button">
+              <Camera />
+              <span>Change profile picture</span>
+              <input type="file" accept="image/*" onChange={(event) => void selectImage(event, "avatar")} />
+            </label>
+          )}
+        </div>
         <div className="artist-hero-name">
           {editing ? (
             <label>
@@ -437,7 +447,13 @@ export function ArtistPage() {
         </div>
       </section>
       <section className="profile-identity">
-        {data.tagline && <p className="artist-tagline">{data.tagline}</p>}
+        {editing ? (
+          <div className="profile-customize-fields">
+            <label>Tagline<input maxLength={160} value={draft.tagline ?? ""} onChange={(event) => setDraft((value) => ({ ...value, tagline: event.target.value }))} /></label>
+            <label>Location<input value={draft.location ?? ""} onChange={(event) => setDraft((value) => ({ ...value, location: event.target.value }))} /></label>
+            <label className="wide">Biography<textarea rows={4} maxLength={2000} value={draft.bio ?? ""} onChange={(event) => setDraft((value) => ({ ...value, bio: event.target.value }))} /></label>
+          </div>
+        ) : data.tagline && <p className="artist-tagline">{data.tagline}</p>}
         <div className="profile-badges">
           {data.founding_artist && (
             <span className="founding-badge">Founding Artist</span>

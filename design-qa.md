@@ -4,6 +4,9 @@
 - `C:\Users\BACKSPACE\Pictures\Screenshots\OLD SHY.png` (1607 x 350 px)
 - `C:\Users\BACKSPACE\Pictures\Screenshots\OLD SHY 2.png` (1623 x 417 px)
 - `C:\Users\BACKSPACE\Pictures\Screenshots\OLD SHY 3.png` (561 x 653 px)
+- `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 162409 (RED).png` (mobile song artwork control reference)
+- `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 162950.png` (mobile feature typography reference)
+- `C:\Users\BACKSPACE\Downloads\Recording 2026-09-21 162749 (SHY).mp4` (7.7-second album hover-motion reference)
 
 **Implementation Evidence**
 - URL: `http://127.0.0.1:4173/`
@@ -20,6 +23,11 @@
 - The mobile render preserves horizontal shelves, touch-sized controls, a compact single-row Track of the Week hero, and a non-overlapping fixed player.
 - Artist profile verification covered the full-bleed hero, 10K monthly listeners, 20K-per-song baseline, top songs, discography, and profile-only motivation card.
 - Album verification covered dynamic artwork color, compact mobile header, 11-song track list, playback/download actions, and the absence of share and motivation controls.
+- The revised mobile cards show unobstructed artwork with no visible purple overlay play button; the whole artwork remains the tap target.
+- Track of the Week uses the reduced title and stream-total scale, with the 20K total rendered in violet.
+- All song, album, artist, and rising-artist artwork receives a restrained but visible violet halo.
+- Album feature cards reproduce the supplied recording's hover behavior: artwork lift, stronger halo, and a Play album pill that fades and rises into place.
+- Artist edit mode provides independent profile-picture and full-width background-picture controls plus editable name, tagline, location, and biography with working Save/Cancel controls.
 
 **Focused Region Comparison Evidence**
 - Hero: compared against `OLD SHY.png` at the matching 1607px desktop width.
@@ -43,6 +51,7 @@
 - `npm test`: passed, 9 files and 24 tests.
 - `npm run build`: passed, including GitHub Pages SPA fallback generation.
 - Browser: home, artist, and album routes rendered; every displayed KOPA song showed at least 20K streams; KOPA showed 10K listeners; motivation opened, copied, and remained responsive; mobile responsive state passed.
+- Current mobile browser capture confirmed the overlay play buttons are absent, Wake Up and 20K are reduced, 20K is violet, artwork glows remain visible, and no player/card overlap was introduced.
 
 **Follow-up Polish**
 - Recheck the same shelves when more than seven distinct live tracks and two distinct featured albums are available; the layout already scrolls horizontally and caps each feature group at two items.
