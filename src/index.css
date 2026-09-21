@@ -332,6 +332,10 @@
     0 0 24px rgba(139,92,246,.5),
     0 0 40px rgba(91,33,182,.24);
 }
+.home-page .purple-band .home-track-art {
+  width: 132px;
+  height: 132px;
+}
 
 /* Animate the artwork, not a shaped halo. */
 @media (min-width: 761px) {
@@ -1818,5 +1822,9 @@ textarea { font-size: 16px; }
   }
   .home-page .purple-band .shelf-frame {
     padding-top: 34px;
+  }
+  .home-page .purple-band .home-track-art {
+    width: 104px;
+    height: 104px;
   }
 }

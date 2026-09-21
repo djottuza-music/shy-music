@@ -56,6 +56,7 @@
 - Iteration 2: post-fix desktop and mobile browser captures showed no remaining P0/P1/P2 issue. Playback and the motivation dialog were exercised in the same rendered build; no browser console errors were recorded.
 - Iteration 3: [P2] The shelf gradient began with a lighter purple top cap that visually separated the upper artwork area from the lower metadata area. Changed the shelf frame to matching `#0A0A0F` top and bottom stops with a restrained violet midpoint, retained 16px rounding, and increased vertical clearance to 28px/30px. The post-fix 1432px browser capture shows one continuous panel and fully visible circular covers.
 - Iteration 4: [P2] The circular cover and its glow still sat too close to the shelf's clipped top edge. Moved the complete card stack down by increasing top clearance from 28px to 40px on desktop and from 24px to 34px on mobile. Post-fix measurements confirm complete 150 x 150 and 120 x 120 circles, with titles and metadata following in the same card flow.
+- Iteration 5: [P2] The Trending Now and Fans Love covers still read as oversized after the clearance adjustment. Reduced only those two shelf artworks from 150px to 132px on desktop and from 120px to 104px on mobile, preserving card widths, text alignment, circular cropping, and all unrelated artwork sizes.
 
 **Verification**
 - `npm run typecheck`: passed.
@@ -68,6 +69,7 @@
 - Desktop and mobile captures confirm the violet artwork light is visible before hover and the Track of the Week total uses the same compact violet 20px treatment at both breakpoints.
 - The revised shelf was measured at 1432px desktop and 390px mobile: desktop covers remain 150 x 150 with 28px top clearance; mobile covers remain 120 x 120 with 24px top clearance. The in-app browser reported no console errors.
 - The final clearance adjustment was measured at 1432px desktop and 390px mobile: desktop covers remain 150 x 150 with 40px top clearance and a 12px title gap; mobile covers remain 120 x 120 with 34px top clearance and an 8px title gap. The in-app browser reported no console errors.
+- Final browser measurements confirm both Trending Now and Fans Love render at 132 x 132 on desktop and 104 x 104 on mobile. The hero, albums, and rising-artist artwork remain unchanged, and the browser reported no console errors.
 - Production database verification recorded one qualified KOPA play from 20,000 to 20,200 and confirmed BITS & PIECES increased from 220,000 to 220,200; the ranked-album result matched the summed track total exactly.
 
 **Follow-up Polish**
