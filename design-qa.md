@@ -7,6 +7,7 @@
 - `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 162409 (RED).png` (mobile song artwork control reference)
 - `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 162950.png` (mobile feature typography reference)
 - `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 164803.png` (diffuse artwork glow and circular player-art reference)
+- `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 174726.png` (album stream-total regression reference)
 - `C:\Users\BACKSPACE\Downloads\Recording 2026-09-21 162749 (SHY).mp4` (7.7-second album hover-motion reference)
 
 **Implementation Evidence**
@@ -57,6 +58,8 @@
 - Browser: home, artist, and album routes rendered; every displayed KOPA song showed at least 20K streams; KOPA showed 10K listeners; motivation opened, copied, and remained responsive; mobile responsive state passed.
 - Current mobile browser capture confirmed the overlay play buttons are absent, Wake Up and 20K are reduced, 20K is violet, artwork glows remain visible, and no player/card overlap was introduced.
 - Current mobile browser captures confirmed a true circular expanded player cover, shape-free violet spill on song and rising-artist artwork, and smaller square 3D album cases; the browser console reported no warnings or errors.
+- Desktop and mobile captures confirm the violet artwork light is visible before hover and the Track of the Week total uses the same compact violet 20px treatment at both breakpoints.
+- Production database verification recorded one qualified KOPA play from 20,000 to 20,200 and confirmed BITS & PIECES increased from 220,000 to 220,200; the ranked-album result matched the summed track total exactly.
 
 **Follow-up Polish**
 - Recheck the same shelves when more than seven distinct live tracks and two distinct featured albums are available; the layout already scrolls horizontally and caps each feature group at two items.

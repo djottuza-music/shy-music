@@ -89,7 +89,7 @@ export async function listRankedAlbums(days: number, limit = 4): Promise<Album[]
   const rows = (ranking ?? []) as Array<{ album_id: string; play_count: number }>
   if (!rows.length) return []
   const { data, error } = await db.from('albums')
-    .select('*, artist:artists(display_name,slug,avatar_url,verified), tracks(id)')
+    .select('*, artist:artists(display_name,slug,avatar_url,verified), tracks(id,plays_count)')
     .in('id', rows.map((row) => row.album_id))
   if (error) throw error
   const byId = new Map((data ?? []).map((row: any) => [row.id, {
@@ -98,10 +98,11 @@ export async function listRankedAlbums(days: number, limit = 4): Promise<Album[]
     genres: normalizedMetadata(row.genres),
     moods: normalizedMetadata(row.moods),
     track_count: row.tracks?.length ?? 0,
+    stream_count: (row.tracks ?? []).reduce((sum: number, track: { plays_count?: number }) => sum + Number(track.plays_count ?? 0), 0),
   } as Album]))
   return rows.reduce<Album[]>((items, row) => {
     const album = byId.get(row.album_id)
-    if (album) items.push({ ...album, stream_count: Number(row.play_count) })
+    if (album) items.push({ ...album, stream_count: album.stream_count ?? Number(row.play_count) })
     return items
   }, [])
 }

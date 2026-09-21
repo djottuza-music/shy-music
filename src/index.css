@@ -324,6 +324,38 @@
   }
 }
 
+/* The violet light is part of the artwork treatment, not a hover-only effect. */
+.home-page .home-track-art .cover,
+.home-page .card-art .cover,
+.home-page .rising-artist-art .cover,
+.home-page .artist-avatar-glow .cover,
+.home-page .home-track-card:hover .home-track-art .cover,
+.home-page .media-card:hover .card-art .cover,
+.home-page .rising-artist-card:hover .rising-artist-art .cover,
+.home-page .artist-card:hover .artist-avatar-glow .cover {
+  box-shadow:
+    0 0 12px rgba(221,214,254,.72),
+    0 0 34px rgba(139,92,246,.58),
+    0 0 68px rgba(91,33,182,.34);
+}
+.home-page .feature-album-art,
+.home-page .feature-album-card:hover .feature-album-art,
+.home-page .feature-album-card:focus-within .feature-album-art {
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,.24),
+    inset -3px -3px 7px rgba(0,0,0,.68),
+    0 12px 24px rgba(0,0,0,.64),
+    0 0 14px rgba(221,214,254,.48),
+    0 0 38px rgba(124,58,237,.52);
+}
+
+/* Match the compact violet stream total on desktop and mobile. */
+.home-page .week-streams strong {
+  color: #A78BFA;
+  font-size: 20px;
+  text-shadow: 0 0 18px rgba(124,58,237,.58);
+}
+
 @media (max-width: 760px) {
   .home-page .purple-band {
     width: 100%;
