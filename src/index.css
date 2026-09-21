@@ -324,6 +324,73 @@
   }
 }
 
+/* Keep one clean shelf edge while preserving a visible, diffuse artwork glow. */
+.home-page .purple-band .shelf-frame {
+  padding-top: 28px;
+}
+.home-page .purple-band .home-track-art .cover,
+.home-page .purple-band .home-track-card:hover .home-track-art .cover {
+  box-shadow:
+    0 0 10px rgba(221,214,254,.68),
+    0 0 24px rgba(139,92,246,.5),
+    0 0 40px rgba(91,33,182,.24);
+}
+
+/* Animate the artwork, not a shaped halo. */
+@media (min-width: 761px) {
+  .home-page .home-track-art .cover {
+    transition: transform .28s cubic-bezier(.2,.8,.2,1), filter .28s ease, box-shadow .28s ease;
+    transform-origin: center;
+  }
+  .home-page .home-track-card:hover .home-track-art .cover,
+  .home-page .home-track-art:focus-visible .cover {
+    filter: brightness(1.06) saturate(1.08);
+    transform: translateY(-5px) scale(1.025);
+  }
+  .home-page .home-track-card:hover .play-song-pill,
+  .home-page .home-track-art:focus-visible .play-song-pill {
+    animation: song-control-in .28s cubic-bezier(.2,.8,.2,1);
+  }
+}
+
+.home-page .home-track-art.playing .cover {
+  animation: song-artwork-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes song-control-in {
+  from { opacity: 0; transform: translateY(5px) scale(.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes song-artwork-pulse {
+  0%, 100% {
+    filter: brightness(1) saturate(1);
+    box-shadow:
+      0 0 10px rgba(221,214,254,.68),
+      0 0 24px rgba(139,92,246,.5),
+      0 0 40px rgba(91,33,182,.24);
+  }
+  50% {
+    filter: brightness(1.08) saturate(1.1);
+    box-shadow:
+      0 0 13px rgba(237,233,254,.8),
+      0 0 30px rgba(167,139,250,.62),
+      0 0 48px rgba(109,40,217,.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-page .home-track-art.playing .cover,
+  .home-page .home-track-card:hover .play-song-pill,
+  .home-page .home-track-art:focus-visible .play-song-pill {
+    animation: none;
+  }
+  .home-page .home-track-card:hover .home-track-art .cover,
+  .home-page .home-track-art:focus-visible .cover {
+    transform: none;
+  }
+}
+
 /* The violet light is part of the artwork treatment, not a hover-only effect. */
 .home-page .home-track-art .cover,
 .home-page .card-art .cover,
@@ -1751,5 +1818,8 @@ textarea { font-size: 16px; }
   .home-page .feature-album-art {
     width: clamp(108px,30vw,128px);
     height: clamp(108px,30vw,128px);
+  }
+  .home-page .purple-band .shelf-frame {
+    padding-top: 24px;
   }
 }
