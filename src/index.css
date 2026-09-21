@@ -311,7 +311,7 @@
 .home-page .purple-band .section-heading { padding: 0; }
 .home-page .purple-band .shelf-frame {
   overflow: hidden;
-  padding: 28px 24px 30px;
+  padding: 40px 24px 30px;
   border-radius: 16px;
   background: linear-gradient(180deg,#0A0A0F 0%,#120828 50%,#0A0A0F 100%);
 }
@@ -1817,6 +1817,6 @@ textarea { font-size: 16px; }
     height: clamp(108px,30vw,128px);
   }
   .home-page .purple-band .shelf-frame {
-    padding-top: 24px;
+    padding-top: 34px;
   }
 }
