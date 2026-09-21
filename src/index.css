@@ -1628,3 +1628,96 @@ textarea { font-size: 15px; }
 input,
 select,
 textarea { font-size: 16px; }
+
+/* Keep artwork lighting diffuse: the image emits light without a visible halo shape. */
+.home-track-art::before,
+.card-art::before,
+.feature-album-art::before,
+.rising-artist-art::before,
+.artist-avatar-glow::before { display: none; }
+.home-track-art .song-card-glow,
+.card-art .song-card-glow,
+.rising-artist-art .song-card-glow,
+.artist-avatar-glow .song-card-glow { display: none; }
+
+.home-track-art .cover,
+.card-art .cover,
+.rising-artist-art .cover,
+.artist-avatar-glow .cover {
+  box-shadow:
+    0 0 9px rgba(196,181,253,.62),
+    0 0 26px rgba(124,58,237,.48),
+    0 0 54px rgba(91,33,182,.3);
+  transition: box-shadow .24s ease, transform .24s ease;
+}
+.home-track-card:hover .home-track-art .cover,
+.media-card:hover .card-art .cover,
+.rising-artist-card:hover .rising-artist-art .cover,
+.artist-card:hover .artist-avatar-glow .cover {
+  box-shadow:
+    0 0 12px rgba(221,214,254,.72),
+    0 0 34px rgba(139,92,246,.58),
+    0 0 68px rgba(91,33,182,.34);
+}
+
+/* Compact square album cases with restrained depth on the home dashboard. */
+.home-page .feature-albums { width: min(440px,100%); }
+.home-page .feature-album-grid {
+  grid-template-columns: repeat(2,138px);
+  gap: 14px;
+  justify-content: start;
+}
+.home-page .feature-album-art {
+  width: 138px;
+  height: 138px;
+  aspect-ratio: 1 / 1;
+  padding: 4px;
+  border: 1px solid rgba(255,255,255,.24);
+  border-radius: 7px;
+  background: #111018;
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,.2),
+    inset -3px -3px 7px rgba(0,0,0,.72),
+    0 8px 18px rgba(0,0,0,.62),
+    0 0 24px rgba(124,58,237,.35);
+  transform: perspective(700px) rotateY(-2deg);
+  transform-origin: center;
+}
+.home-page .feature-album-art .cover {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
+  object-fit: cover;
+}
+.home-page .feature-album-card:hover .feature-album-art,
+.home-page .feature-album-card:focus-within .feature-album-art {
+  transform: perspective(700px) rotateY(0) translateY(-3px);
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,.24),
+    inset -3px -3px 7px rgba(0,0,0,.68),
+    0 12px 24px rgba(0,0,0,.64),
+    0 0 34px rgba(124,58,237,.48);
+}
+
+/* The full player cover must stay a true circle at every mobile height. */
+@media (max-width: 760px) {
+  .now-playing .now-cover {
+    width: min(72vw,38vh);
+    height: min(72vw,38vh);
+    max-width: none;
+    aspect-ratio: 1 / 1;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .home-page .feature-albums { padding-inline: 16px; }
+  .home-page .feature-album-grid {
+    grid-template-columns: repeat(2,clamp(108px,30vw,128px));
+    gap: 14px;
+  }
+  .home-page .feature-album-art {
+    width: clamp(108px,30vw,128px);
+    height: clamp(108px,30vw,128px);
+  }
+}

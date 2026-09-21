@@ -6,6 +6,7 @@
 - `C:\Users\BACKSPACE\Pictures\Screenshots\OLD SHY 3.png` (561 x 653 px)
 - `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 162409 (RED).png` (mobile song artwork control reference)
 - `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 162950.png` (mobile feature typography reference)
+- `C:\Users\BACKSPACE\Pictures\Screenshots\Screenshot 2026-09-21 164803.png` (diffuse artwork glow and circular player-art reference)
 - `C:\Users\BACKSPACE\Downloads\Recording 2026-09-21 162749 (SHY).mp4` (7.7-second album hover-motion reference)
 
 **Implementation Evidence**
@@ -28,6 +29,9 @@
 - All song, album, artist, and rising-artist artwork receives a restrained but visible violet halo.
 - Album feature cards reproduce the supplied recording's hover behavior: artwork lift, stronger halo, and a Play album pill that fades and rises into place.
 - Artist edit mode provides independent profile-picture and full-width background-picture controls plus editable name, tagline, location, and biography with working Save/Cancel controls.
+- Trending and rising-artist artwork now emits layered violet light directly from the image edge; the previous blurred pseudo-element and legacy glow object are disabled so no gray-purple shape is visible.
+- The expanded mobile player artwork is constrained to equal width and height with a circular crop at every mobile viewport height.
+- Home featured-album covers are compact 108-138px square cases with restrained inset depth, perspective, and violet light rather than oversized flat artwork.
 
 **Focused Region Comparison Evidence**
 - Hero: compared against `OLD SHY.png` at the matching 1607px desktop width.
@@ -52,6 +56,7 @@
 - `npm run build`: passed, including GitHub Pages SPA fallback generation.
 - Browser: home, artist, and album routes rendered; every displayed KOPA song showed at least 20K streams; KOPA showed 10K listeners; motivation opened, copied, and remained responsive; mobile responsive state passed.
 - Current mobile browser capture confirmed the overlay play buttons are absent, Wake Up and 20K are reduced, 20K is violet, artwork glows remain visible, and no player/card overlap was introduced.
+- Current mobile browser captures confirmed a true circular expanded player cover, shape-free violet spill on song and rising-artist artwork, and smaller square 3D album cases; the browser console reported no warnings or errors.
 
 **Follow-up Polish**
 - Recheck the same shelves when more than seven distinct live tracks and two distinct featured albums are available; the layout already scrolls horizontally and caps each feature group at two items.
